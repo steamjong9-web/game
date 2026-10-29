@@ -1,0 +1,367 @@
+<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>진격의 기술가정 - 벽 위의 수업</title><style>
+*{box-sizing:border-box}body{margin:0;background:#0d1117;color:#eee;font-family:'Malgun Gothic','Apple SD Gothic Neo',sans-serif;display:flex;justify-content:center;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+#w{position:relative;width:100%;max-width:800px}canvas{width:100%;display:block;background:#000;touch-action:none}
+#ui{position:absolute;left:0;top:0;width:100%;aspect-ratio:16/9;display:none;background:rgba(10,14,28,.9);overflow:auto}
+.p{margin:auto;width:92%;text-align:center;padding:8px}.p h1{margin:4px;font-size:clamp(22px,5vw,38px);color:#ffd36b}.p h2,.p h3{margin:4px;color:#ffd36b}.p p{margin:6px 0;line-height:1.5;font-size:clamp(13px,2.4vw,17px)}
+.s,small{color:#9fb0c8;font-size:12px;display:block}.sp{color:#ff8a8a}
+button{display:block;margin:6px auto;min-width:min(300px,90%);padding:9px 14px;border:2px solid #ffd36b;background:#1f2a48;color:#fff;border-radius:10px;font-size:clamp(13px,2.4vw,16px);cursor:pointer;font-family:inherit}button:hover{background:#34457a}
+button.on{background:#c0392b}input{padding:8px;font-size:16px;border-radius:8px;border:2px solid #ffd36b;text-align:center;background:#111;color:#fff;width:200px}
+#tc,#bt{display:none;gap:6px;padding:6px;background:#161b26;justify-content:center}#tc button,#bt button{min-width:0;margin:0;flex:1;padding:12px 0;font-size:22px;user-select:none;touch-action:none}
+.mt{display:grid;grid-template-columns:repeat(9,1fr);gap:2px;font-size:11px;color:#cfe}.mt span{background:#1b2540;border-radius:4px;padding:2px}
+#dl{display:none;position:absolute;left:2%;right:2%;bottom:3%;background:#0e1630f2;border:3px solid #ffd36b;border-radius:12px;padding:12px 16px;z-index:5;box-shadow:0 0 0 3px #0008;cursor:pointer}#dl b{background:#ffd36b;color:#111;padding:2px 10px;border-radius:8px;font-size:15px}#dl p{margin:8px 0 4px;font-size:clamp(16px,3vw,22px);line-height:1.55;text-shadow:0 1px 2px #000}#dl i{color:#9fb0c8;font-size:12px}.p p{font-size:clamp(15px,2.7vw,20px);text-shadow:0 1px 2px #000}.gr{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.gr button{min-height:54px;font-size:13px;padding:4px;min-width:0;margin:0}
+button{background:linear-gradient(#2c3b69,#1a2447);box-shadow:0 3px 0 #0007,inset 0 1px 0 #fff3;transition:transform .1s,filter .1s}button:hover{transform:translateY(-2px);filter:brightness(1.25)}button:active{transform:translateY(1px)}
+#ui{background:radial-gradient(circle at 50% 30%,#1b2a52f2,#070a16f5)}#dl{background:linear-gradient(#1a2650,#0a1130)}
+.p h1{background:linear-gradient(180deg,#fff6c9,#ffb347 60%,#e8572a);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 3px 0 #000) drop-shadow(0 0 14px #ff7a2a88);letter-spacing:2px;animation:fl 3s ease-in-out infinite}@keyframes fl{50%{transform:translateY(-4px)}}
+</style></head><body><div id="w"><canvas id="c" width="800" height="450"></canvas><div id="ui"></div>
+<div id="tc"><button data-k="L">◀</button><button data-k="R">▶</button><button data-k="J">⬆</button><button data-k="D">⬇</button><button data-k="A">⚔</button><button data-k="P">🧪</button></div>
+<div id="dl"></div><div id="bt"><button id="undo" style="font-size:15px">↩ 되돌리기</button><button id="ok" style="font-size:15px">🏗 완성!</button></div></div>
+<script>
+const $=s=>document.querySelector(s),cv=$('#c'),x=cv.getContext('2d'),W=800,H=450,GY=385,U=$('#ui');
+const cl=(v,a,b)=>Math.max(a,Math.min(b,v)),rd=(a,b)=>a+Math.random()*(b-a);
+const MAT={wood:{n:'목재',i:'🪵',d:'가볍고 빠름 · 내구도 낮음 · 점프 높음',spd:1.25,jmp:1.1,hp:60,atk:1,col:'#c8955a'},iron:{n:'철',i:'⚙️',d:'튼튼하고 강함 · 느리고 점프 낮음',spd:.8,jmp:.9,hp:140,atk:1.6,col:'#c4ccd6'},plastic:{n:'강화 플라스틱',i:'🔷',d:'밸런스형 · 무난하고 안정적',spd:1,jmp:1,hp:100,atk:1.25,col:'#6cc3ff'}};
+const PW={norm:{spd:1,dr:1.2,rg:0},max:{spd:1.25,dr:2.4,rg:0},eff:{spd:.9,dr:.7,rg:0},sol:{spd:1,dr:1.5,rg:1}};
+let G,mode='',raf,F=[],AC;const K={};
+function reset(){G={name:'학생',mat:'plastic',pw:'norm',stab:50,morse:false,q:0,qn:0,sol:.5,rat:0,fails:0,g:30,pot:1,f:{},z:0,hpf:1,lv:3,cl:0}}reset();
+addEventListener('keydown',e=>{K[e.code]=1;if(mode=='talk'&&!e.repeat&&/Space|KeyZ|Enter/.test(e.code)&&window.adv){e.preventDefault();adv()}if((mode=='battle'||mode=='ow'||mode=='arc')&&/Space|Arrow/.test(e.code))e.preventDefault()});addEventListener('keyup',e=>K[e.code]=0);
+document.querySelectorAll('#tc button').forEach(b=>{const k=b.dataset.k;b.onpointerdown=e=>{e.preventDefault();K[k]=1};['up','leave','cancel'].forEach(s=>b['onpointer'+s]=()=>K[k]=0)});
+function beep(f,d=.08){try{AC=AC||new AudioContext();const o=AC.createOscillator(),g=AC.createGain();o.frequency.value=f;g.gain.value=.05;o.connect(g);g.connect(AC.destination);o.start();o.stop(AC.currentTime+d)}catch(e){}}
+function B(l,f){F.push(f);return`<button onclick="F[${F.length-1}]()">${l}</button>`}
+function show(h){if(mode!='battle')bg({sk:['#1c2a4a','#3b4f7a']},0);U.innerHTML='<div class=p>'+h+'</div>';U.style.display='flex'}
+function hide(){U.style.display='none'}
+function say(L,cb){let i=0;(function n(){if(i>=L.length)return cb();const[s0,t]=L[i++],s=s0.replace('기술 선생님','이종혁 선생님');show(`<p class=sp><b>${s}</b></p><p style="font-size:clamp(15px,2.8vw,20px)">${t.replace(/{n}/g,G.name)}</p>${B('다음 ▶',n)}`)})()}
+/* ---------- 그리기 ---------- */
+function bg(c,t){const g=x.createLinearGradient(0,0,0,300);g.addColorStop(0,c.sk[0]);g.addColorStop(1,c.sk[1]);x.fillStyle=g;x.fillRect(0,0,W,H);
+x.fillStyle='rgba(255,240,180,.85)';x.beginPath();x.arc(660,70,28,0,7);x.fill();x.fillStyle='rgba(255,255,255,.7)';
+for(let i=0;i<4;i++){const cx=((i*230+t*12*(1+i%2))%1000)-100,cy=45+i*30;x.beginPath();x.ellipse(cx,cy,50,16,0,0,7);x.ellipse(cx+30,cy-8,32,14,0,0,7);x.fill()}
+x.fillStyle='#7f8794';x.fillRect(0,175,W,210);x.fillStyle='#9aa2b0';for(let i=0;i<W;i+=40)x.fillRect(i,160,26,16);
+x.strokeStyle='#5d6470';x.lineWidth=1;for(let y=190;y<GY;y+=24){x.beginPath();x.moveTo(0,y);x.lineTo(W,y);x.stroke();for(let i=(y/24%2)*20;i<W;i+=40){x.beginPath();x.moveTo(i,y);x.lineTo(i,y+24);x.stroke()}}
+x.fillStyle='#5b8c3a';x.fillRect(0,GY,W,16);x.fillStyle='#6b4a2b';x.fillRect(0,GY+16,W,H)}
+function rr(a,b,w,h,r,f){x.fillStyle=f;x.beginPath();x.roundRect(a,b,w,h,r);x.fill()}
+function ci(a,b,r,f){x.fillStyle=f;x.beginPath();x.arc(a,b,r,0,7);x.fill()}
+function drawP(p,t,m){x.save();x.translate(p.x,p.y);x.scale(p.f,1);const air=p.y<GY-2,w=(p.mv&&!air?Math.sin(t*16)*8:0);
+x.strokeStyle='#27304f';x.lineWidth=7;x.lineCap='round';x.beginPath();x.moveTo(-4,-22);x.lineTo(-4+w+(air?-5:0),-4);x.moveTo(5,-22);x.lineTo(5-w+(air?5:0),-4);x.stroke();
+x.fillStyle='#fff';x.fillRect(-9+w,-6,10,5);x.fillRect(1-w,-6,10,5);
+rr(-15,-33,8,11,2,'#aab4c8');rr(8,-33,8,11,2,'#aab4c8');rr(-13,-54,26,34,7,'#2f3d74');
+x.fillStyle='#fff';x.beginPath();x.moveTo(-5,-54);x.lineTo(5,-54);x.lineTo(0,-44);x.fill();rr(-2,-48,4,12,1,'#d33');
+x.strokeStyle='#7a4b1f';x.lineWidth=2.5;x.beginPath();x.moveTo(-12,-50);x.lineTo(10,-24);x.moveTo(12,-50);x.lineTo(-10,-24);x.stroke();
+x.strokeStyle='#aab4c8';x.lineWidth=1.5;x.beginPath();x.moveTo(-14,-30);x.quadraticCurveTo(-24,-22,-26,-8);x.moveTo(15,-30);x.quadraticCurveTo(24,-22,26,-8);x.stroke();
+ci(0,-68,16,'#ffe2c6');x.fillStyle='#3a2a20';x.beginPath();x.arc(0,-70,17,Math.PI,0);x.lineTo(14,-66);x.lineTo(4,-74);x.lineTo(-4,-66);x.lineTo(-14,-66);x.fill();
+x.fillStyle='#fff';x.beginPath();x.ellipse(5,-66,5,6,0,0,7);x.ellipse(-6,-66,4,5,0,0,7);x.fill();ci(6,-65,3.2,'#2a1a10');ci(-5,-65,2.6,'#2a1a10');ci(7,-67,1.2,'#fff');
+x.fillStyle='rgba(255,120,120,.4)';x.beginPath();x.ellipse(10,-59,3,2,0,0,7);x.fill();x.strokeStyle='#a55';x.lineWidth=1.3;x.beginPath();x.arc(4,-58,3,0,3);x.stroke();
+x.save();x.translate(7,-46);x.rotate(p.at>0?-1.6+(.16-p.at)*14:.5+w*.05);x.strokeStyle='#ffe2c6';x.lineWidth=5;x.beginPath();x.moveTo(0,0);x.lineTo(8,12);x.stroke();
+x.fillStyle=m.col;x.beginPath();x.moveTo(6,10);x.lineTo(10,10);x.lineTo(12,48);x.lineTo(8,54);x.lineTo(4,48);x.fill();x.strokeStyle='#fff8';x.stroke();x.restore();x.restore()}
+function drawG(g,c,t,nyr,pl){x.save();x.translate(g.x,GY);
+if(g.st>0){x.fillStyle='rgba(255,40,40,'+(.15+.3*(.75-g.st))+')';x.beginPath();x.ellipse(0,-2,120,14,0,0,7);x.fill()}
+const lift=g.st>0?Math.sin((.75-g.st)*4)*18:0;rr(-54,-82-lift,42,82+lift,12,c.sk2);rr(12,-82,42,82,12,c.sk2);rr(-62,-8,54,10,5,'#5a3a2a');rr(8,-8,54,10,5,'#5a3a2a');
+const ty=nyr+22;rr(-62,ty,124,-60-ty,18,c.col);rr(-62,-70,124,16,6,'#6b5a45');
+x.strokeStyle=c.col;x.lineWidth=24;x.lineCap='round';const sw=g.st>0?-40:Math.sin(t*3)*8;x.beginPath();x.moveTo(-66,ty+14);x.lineTo(-84,ty+80+sw);x.moveTo(66,ty+14);x.lineTo(84,ty+80-sw);x.stroke();
+rr(-18,nyr-10,36,34,6,c.col);ci(0,nyr-42,42,c.col);x.fillStyle='#2b1d14';x.beginPath();x.arc(0,nyr-50,43,Math.PI*1.05,Math.PI*1.95);x.fill();
+const d=Math.sign(pl.x-g.x)*4;x.fillStyle='#fff';x.beginPath();x.ellipse(-16,nyr-42,10,12,0,0,7);x.ellipse(16,nyr-42,10,12,0,0,7);x.fill();ci(-16+d,nyr-40,5,'#200');ci(16+d,nyr-40,5,'#200');
+x.strokeStyle='#200';x.lineWidth=4;x.beginPath();x.moveTo(-28,nyr-60);x.lineTo(-6,nyr-52);x.moveTo(28,nyr-60);x.lineTo(6,nyr-52);x.stroke();
+rr(-18,nyr-26,36,14,5,'#400');x.fillStyle='#fff';for(let i=0;i<4;i++)x.fillRect(-15+i*8,nyr-26,6,5);
+const gl=x.createRadialGradient(0,nyr,2,0,nyr,30+Math.sin(t*8)*4);gl.addColorStop(0,'rgba(255,255,160,1)');gl.addColorStop(.4,'rgba(255,40,40,.95)');gl.addColorStop(1,'rgba(255,0,0,0)');x.fillStyle=gl;x.beginPath();x.arc(0,nyr,34,0,7);x.fill();
+x.fillStyle='#fff';x.font='bold 12px sans-serif';x.textAlign='center';x.fillText('▼약점',0,nyr-92);x.textAlign='left';
+if(g.sk){x.fillStyle=g.sw>0?'rgba(255,230,80,'+(.2+.2*Math.sin(t*30))+')':g.sk=='H'?'rgba(150,175,205,.7)':g.sk=='C'?'rgba(255,0,0,.3)':'rgba(0,0,0,0)';x.fillRect(-90,nyr-90,180,GY+nyr)}if(g.fl>0){x.fillStyle='rgba(255,255,255,.5)';x.fillRect(-90,nyr-90,180,GY+nyr)}x.restore()}
+function bar(X,Y,w,h,v,col,lb){x.fillStyle='#0008';x.fillRect(X,Y,w,h);x.fillStyle=col;x.fillRect(X,Y,w*cl(v,0,1),h);x.strokeStyle='#fff';x.lineWidth=1;x.strokeRect(X,Y,w,h);x.fillStyle='#fff';x.font='11px sans-serif';x.fillText(lb,X+4,Y+h-3)}
+/* ---------- 전투 ---------- */
+function battle(c,done){const m=MAT[G.mat],pw=PW[G.pw],gm=c.late?(G.morse?.8:1)*(1.25-.5*G.stab/100):1;
+const hpM=m.hp+(c.late?G.stab*.3:0)+G.q*4+G.rat*4;
+const p={x:140,y:GY,vy:0,f:1,hp:hpM*Math.max(.35,G.hpf),pow:100,at:0,cd:0,hd:1,mv:0},g={x:620,hp:c.hp*(c.late&&G.morse?.8:1),st:0,ct:2,fl:0,f:-1,sk:0,sw:0,sa:0,cc:5};g.max=g.hp;
+let T=c.time,gt=0,inv=0,pops=[],rocks=[],sparks=[],last=performance.now(),fin=0,shake=0;
+show(`<h3>⚔ ${c.n}</h3><p>목의 <b style="color:#f55">빨간 약점</b>은 점프해서 공격해야 닿아요!<br>제한 시간 ${c.time}초 · 발 구르기는 점프로 회피! 거인 스킬 <b>단단해기·반격·투석</b>에 주의 (H키/🧪 회복약)</p>${c.late?`<p class=s>${G.morse?'📡 모스부호 성공: 거인 약화!':'📡 모스부호 실패: 거인 정상 강도'} · 🏗 구조물 안정성 ${G.stab}%</p>`:''}${B('▶ 전투 시작',go)}`);
+function go(){mode='battle';hide();$('#tc').style.display='flex';last=performance.now();raf=requestAnimationFrame(loop)}
+function stop(){cancelAnimationFrame(raf);mode='';$('#tc').style.display='none';K.L=K.R=K.J=K.A=0}
+function pop(t,X,Y,col){pops.push({t,x:X,y:Y,l:.9,col})}
+function hurt(d){if(inv>0)return;p.hp-=d;inv=1;shake=.3;pop('-'+d,p.x,p.y-90,'#f66');beep(120,.15)}
+function loop(now){const dt=Math.min(.033,(now-last)/1000);last=now;gt+=dt;T-=dt;inv-=dt;shake-=dt;g.fl-=dt;
+const L=K.ArrowLeft||K.KeyA||K.L,R=K.ArrowRight||K.KeyD||K.R,J=K.ArrowUp||K.KeyX||K.KeyW||K.J,A=K.KeyZ||K.Space||K.A,low=p.pow<=0?.5:1;
+if(!fin){const mv=(R?1:0)-(L?1:0);p.mv=mv;if(mv)p.f=mv;p.x+=mv*230*m.spd*pw.spd*low*dt;
+if(J&&p.y>=GY-1){p.vy=-640*m.jmp*(low<1?.8:1);p.pow-=2;beep(500,.05)}
+p.vy+=1700*dt;p.y=Math.min(GY,p.y+p.vy*dt);if(p.y>=GY)p.vy=0;
+p.pow=cl(p.pow-(pw.dr+(mv?1.2:0))*dt+pw.rg*(.5+G.sol)*dt,0,100);
+p.cd-=dt;p.at-=dt;p.pc=(p.pc||0)-dt;if((K.KeyH||K.P)&&G.pot>0&&p.pc<=0&&p.hp<hpM){G.pot--;p.pc=1;p.hp=Math.min(hpM,p.hp+45);pop('+45 🧪',p.x,p.y-90,'#6f6');beep(900,.1)}if(A&&p.cd<=0){p.cd=.38;p.at=.16;p.hd=0;p.pow=Math.max(0,p.pow-2.5);beep(300,.05)}
+const ny=-150+Math.sin(gt*1.6)*25,nx=g.x,nyA=GY+ny;
+if(p.at>0&&!p.hd){const hx=p.f>0?p.x:p.x-80,hy=p.y-80,qx=cl(nx,hx,hx+80),qy=cl(nyA,hy,hy+50);
+if(Math.hypot(qx-nx,qy-nyA)<26){p.hd=1;if(g.sk=='H'&&g.sw<=0){hurt(Math.round(c.dmg*.8));pop('튕겨냈다! 반사!',g.x,nyA-60,'#f88')}else if(g.sk=='C'&&g.sw<=0){hurt(Math.round(c.dmg*1.6));g.sk=0;pop('반격!!',g.x,nyA-60,'#f33')}else{const d=Math.round(12*m.atk*(low<1?.6:1));g.hp-=d;g.fl=.15;for(let i=0;i<16;i++)sparks.push({x:nx,y:nyA,vx:rd(-240,240),vy:rd(-280,60),l:.55});pop('약점! -'+d,g.x,nyA-60,'#ff0');beep(700,.1);shake=.15}}
+else if(Math.abs(p.x-g.x)<110&&hy+50>nyA+30){p.hd=1;pop('단단해!',p.x,p.y-90,'#ccc')}}
+const dx=p.x-g.x;g.f=Math.sign(dx)||1;
+if(g.st>0){g.st-=dt;if(g.st<=0){shake=.3;if(p.y>=GY-4&&Math.abs(dx)<120)hurt(c.dmg)}}
+else{if(Math.abs(dx)>85&&!(g.sk&&g.sk!='R'))g.x+=Math.sign(dx)*c.spd*gm*dt;g.ct-=dt;if(g.ct<=0&&Math.abs(dx)<135&&!g.sk){g.st=.7;g.ct=1.9}
+g.cc-=dt;if(c.s&&!g.sk&&g.cc<=0){g.sk=c.s[Math.floor(Math.random()*c.s.length)];g.sw=.9;g.sa=g.sk=='R'?.2:2.4;g.cc=rd(4,6.5)/(c.final?1.3:1)}
+if(g.sk){if(g.sw>0){g.sw-=dt;if(g.sw<=0&&g.sk=='R')for(let i=0;i<3;i++)rocks.push({x:g.x,y:GY-230,vx:(p.x-g.x+rd(-90,90))/.95,vy:-150})}else{g.sa-=dt;if(g.sa<=0)g.sk=0}}}
+g.x=cl(g.x,90,730);if(Math.abs(p.x-g.x)<58)p.x=g.x+(p.x<g.x?-58:58);p.x=cl(p.x,30,770)}
+let cond=0;if(c.final&&!fin&&(g.hp<=g.max*.5||T<=0||p.hp<=0))return stop(),c.mid();
+if(!fin){if(g.hp<=0){fin=1;setTimeout(()=>{stop();G.hpf=Math.max(.25,p.hp/hpM);done(true)},900)}
+else if(p.hp<=0){fin=1;setTimeout(()=>{stop();G.fails++;G.hpf=.6;G.g=Math.floor(G.g*.7);if(--G.lv<=0)return gameOver();show(`<h3>💥 쓰러졌다…</h3><p>내구도가 바닥났어요. 거인 스킬을 어떻게 피할지 생각해 보세요! (골드 30% 손실 · 남은 목숨 ♥×${G.lv})</p>${B('🔁 재도전',()=>battle(c,done))}${B('🏃 후퇴 (회복약 1개 지급)',()=>{G.pot++;ow()})}`)},500)}
+else if(T<=0){fin=1;stop();G.fails++;G.hpf=Math.max(.25,p.hp/hpM);if(--G.lv<=0)return gameOver();show(`<h3>⏱ 시간 초과!</h3><p>거인이 벽을 무너뜨렸다… (남은 목숨 ♥×${G.lv})</p>${B('🔁 재도전',()=>battle(c,done))}${B('🏃 후퇴',ow)}`);return}}
+pops.forEach(o=>{o.l-=dt;o.y-=30*dt});rocks.forEach(r=>{r.vy+=900*dt;r.x+=r.vx*dt;r.y+=r.vy*dt;if(!fin&&inv<=0&&Math.hypot(r.x-p.x,r.y-(p.y-35))<30){hurt(Math.round(c.dmg*.7));r.d=1}if(r.y>GY)r.d=1});rocks=rocks.filter(r=>!r.d);sparks.forEach(s=>{s.l-=dt;s.vy+=700*dt;s.x+=s.vx*dt;s.y+=s.vy*dt});sparks=sparks.filter(s=>s.l>0);pops=pops.filter(o=>o.l>0);
+x.save();if(shake>0)x.translate(rd(-4,4),rd(-4,4));bg(c,gt);const ny=-150+Math.sin(gt*1.6)*25;
+if(fin&&g.hp<=0)x.globalAlpha=.4;drawG(g,c,gt,ny,p);x.globalAlpha=1;if(inv<=0||Math.floor(gt*20)%2)drawP(p,gt,m);
+rocks.forEach(r=>{ci(r.x,r.y,14,'#6b5f55');ci(r.x-4,r.y-4,4,'#a09488')});sparks.forEach(s=>{x.globalAlpha=Math.max(0,s.l*2);ci(s.x,s.y,3.2,'#ffe066')});x.globalAlpha=1;x.font='bold 15px sans-serif';x.textAlign='center';pops.forEach(o=>{x.fillStyle=o.col;x.fillText(o.t,o.x,o.y)});x.textAlign='left';x.restore();
+if(c.final&&g.hp<g.max*.85){for(let i=0;i<5;i++){const y=rd(0,H),h=rd(4,20);x.drawImage(cv,0,y,W,h,rd(-10,10),y,W,h)}x.fillStyle='#3f3';x.font='12px monospace';for(let i=0;i<8;i++)x.fillText(Math.random()<.5?'0101':'SIM',rd(0,W),rd(0,H))}
+{const v=x.createRadialGradient(W/2,H/2,H*.45,W/2,H/2,W*.62);v.addColorStop(0,'rgba(0,0,0,0)');v.addColorStop(1,p.hp/hpM<.3?'rgba(170,0,0,.55)':'rgba(0,0,10,.38)');x.fillStyle=v;x.fillRect(0,0,W,H)}bar(10,10,200,16,p.hp/hpM,p.hp/hpM>.3?'#4c4':'#e33','❤ 체력 '+Math.max(0,Math.ceil(p.hp))+'/'+Math.ceil(hpM));bar(10,30,200,12,p.pow/100,p.pow>0?'#4af':'#a44','입체기동 전력 '+Math.ceil(p.pow)+'%');
+bar(W-230,10,220,16,g.hp/g.max,'#e33','거인 '+Math.max(0,Math.ceil(g.hp)));x.fillStyle='#fff';x.font='bold 14px sans-serif';x.fillText('🧪 회복약(H키) x'+G.pot,10,62);if(g.sk){x.fillStyle=g.sw>0?'#fd0':'#f55';x.font='bold 18px sans-serif';x.textAlign='center';x.fillText((g.sw>0?'⚠ 준비중: ':'')+({H:'🛡 단단해기! 치면 반사 피해',C:'🔥 반격 태세! 치지 마세요',R:'🪨 투석! 점프로 회피'})[g.sk],W/2,62);x.textAlign='left'}x.fillStyle=T<15?'#f55':'#fff';x.font='bold 22px sans-serif';x.textAlign='center';x.fillText('⏱ '+Math.max(0,Math.ceil(T)),W/2,30);x.textAlign='left';
+if(mode=='battle')raf=requestAnimationFrame(loop)}}
+/* ---------- 퀴즈 / 미니게임 ---------- */
+const QB=[['삼각형 구조가 튼튼한 이유는?',['모양이 예뻐서','힘이 분산되고 모양이 잘 안 변해서','재료가 적어서','가벼워서'],1,'삼각형은 변의 길이가 정해지면 모양이 변하지 않아요. 트러스 구조의 원리!'],
+['신재생 에너지가 아닌 것은?',['태양광','풍력','석탄','지열'],2,'석탄은 화석 연료예요. 태양광·풍력·지열·수력·바이오가 신재생에너지!'],
+['모스부호 SOS는?',['··· ▬▬▬ ···','▬▬▬ ··· ▬▬▬','·▬ ▬▬ ···','▬·▬ ·▬·'],0,'S=···, O=▬▬▬. 점 세 개, 선 세 개, 점 세 개!'],
+['단백질이 풍부한 식품은?',['사탕','두부','탄산음료','감자튀김'],1,'두부·달걀·고기·생선은 몸을 만드는 단백질 공급원이에요.'],
+['합선으로 인한 화재를 막아 주는 장치는?',['차단기·퓨즈','리본','자석','나사'],0,'과전류가 흐르면 차단기·퓨즈가 전기를 끊어 줘요.'],
+['제품 개발의 알맞은 순서는?',['제작→설계→아이디어','문제 확인→아이디어→설계→제작→평가','평가→제작→문제 확인','설계→평가→제작'],1,'문제 확인 → 아이디어 → 설계 → 제작 → 평가(개선) 순서예요.'],
+['식중독 예방 습관으로 알맞은 것은?',['생고기·채소 도마 같이 쓰기','조리 전 손 씻기','실온에 하루 두기','씻지 않고 먹기'],1,'손 씻기, 도마 구분, 충분히 익히기, 냉장 보관이 기본이에요.'],
+['가볍고 가공이 쉽지만 불에 약한 재료는?',['철','목재','유리','콘크리트'],1,'목재는 가볍고 다루기 쉽지만 불과 습기에 약해요.'],
+['정보통신기술(ICT)의 예가 아닌 것은?',['메신저','와이파이','GPS','삽질'],3,'ICT는 정보를 주고받고 처리하는 기술이에요.'],
+['에너지 효율 1등급 제품의 장점은?',['전기를 더 쓴다','같은 일을 하면서 전기를 덜 쓴다','고장이 없다','공짜다'],1,'효율이 높을수록 전기요금과 에너지 낭비가 줄어요.'],
+['칼슘이 풍부해 뼈를 튼튼하게 하는 식품은?',['우유·멸치','라면','사탕','콜라'],0,'우유·멸치·치즈는 칼슘 공급원이에요.'],
+['건물의 무게를 땅으로 전달하는 부분은?',['기초(토대)','간판','페인트','창문'],0,'기초가 튼튼해야 구조물이 안전해요.']];
+function quiz(n,cb){const Q=QB.slice().sort(()=>Math.random()-.5).slice(0,n);let i=0;(function nx(){if(i>=n)return cb();const q=Q[i++];
+show(`<h3>📝 보급 퀴즈 ${i}/${n}</h3><p>${q[0]}</p>`+q[1].map((o,k)=>B(o,()=>{G.qn++;const ok=k==q[2];if(ok){G.q++;G.g+=10;beep(800)}else{beep(150);G.hpf=Math.max(.15,G.hpf-.1)};show(`<h3>${ok?'⭕ 정답! +10💰 · 내구도 +4':'❌ 아쉬워요 (체력 -10%)'}</h3><p>${q[3]}</p>${B('다음 ▶',nx)}`)})).join(''))})()}
+function solar(cb){let r=0,sc=0;(function nx(){if(r>=3){G.sol=sc/9;return say([['해설',`비상 발전 점검 완료! 점수 ${sc}/9 ${G.pw=='sol'?'→ 태양광 회복 속도에 반영돼요.':'(태양광을 고르면 회복 속도에 반영됩니다)'}`]],cb)}
+r++;const alt=Math.floor(rd(20,75));show(`<h3>☀️ 미니게임: 태양광 패널 각도 맞추기 (${r}/3)</h3><p>태양 고도 <b>${alt}°</b><br>햇빛을 정면으로 받으려면 패널을 몇 도로 세워야 할까요?</p><p class=s>힌트: 햇빛과 패널면이 수직일 때 발전량이 최대 → 패널 기울기 = 90° − 고도</p><div style="font-size:50px;transform:rotate(${0}deg)" id=pn>🔆</div><input type=range id=sl min=0 max=90 value=45 style="width:70%"><p id=sv>45°</p>${B('📐 고정!',()=>{const v=+$('#sl').value,d=Math.abs(v-(90-alt)),s=d<=5?3:d<=12?2:d<=22?1:0;sc+=s;beep(600);show(`<h3>${'⭐'.repeat(s)||'💤'}</h3><p>정답 ${90-alt}° · 내 선택 ${v}° (오차 ${d}°)</p>${B('다음 ▶',nx)}`)})}`);
+$('#sl').oninput=e=>{$('#sv').textContent=e.target.value+'°';$('#pn').style.transform=`rotate(${e.target.value-45}deg)`}})()}
+function ration(cb){const FD=[['밥','탄',1,'🍚'],['닭가슴살','단',1,'🍗'],['시금치','채',1,'🥬'],['우유','칼',1,'🥛'],['라면','',0,'🍜'],['콜라','',0,'🥤'],['두부','단',1,'🧈'],['사과','채',1,'🍎'],['감자튀김','',0,'🍟']];let S=new Set();
+(function r(){show(`<h3>🍱 미니게임: 비상 식량 배급</h3><p>부상자들을 위해 <b>4가지</b>를 골라 <b>5대 영양소가 고루</b> 들어가게 하세요.<br><small>탄수화물·단백질·무기질/비타민(채소)·칼슘 균형!</small></p><div style="display:flex;flex-wrap:wrap;justify-content:center;gap:4px">`+FD.map((f,i)=>`<button class="${S.has(i)?'on':''}" style="min-width:110px;margin:2px" onclick="F[${(F.push(()=>{S.has(i)?S.delete(i):S.size<4&&S.add(i);r()}),F.length-1)}]()">${f[3]} ${f[0]}</button>`).join('')+`</div>`+B('✅ 배급 완료',()=>{const gs=new Set(),bad=[...S].filter(i=>!FD[i][2]).length;S.forEach(i=>FD[i][2]&&gs.add(FD[i][1]));G.rat=Math.max(0,gs.size-bad);if(G.rat<2){G.f.rt=0;return failMini(()=>ration(cb))}
+say([['해설',`영양 균형 점수 ${G.rat}/4 · 회복 보너스 내구도 +${G.rat*4}. ${bad?'라면·콜라·튀김은 열량은 높지만 영양이 한쪽으로 치우쳐요.':'균형 잡힌 식단은 몸을 지키는 최고의 장비!'}`]],cb)}))})()}
+/* ---------- 구조 퍼즐 ---------- */
+function build(done){mode='build';hide();$('#bt').style.display='flex';const N=[];for(let r=0;r<3;r++)for(let c=0;c<5;c++)N.push({x:160+c*120,y:120+r*95,c,r});let E=[],sel=-1;const MAX=8;
+const tris=()=>{const s=new Set(E.map(e=>e.join()));const t=[];for(let a=0;a<15;a++)for(let b=a+1;b<15;b++)for(let c=b+1;c<15;c++)if(s.has(a+','+b)&&s.has(b+','+c)&&s.has(a+','+c))t.push([a,b,c]);return t};
+function draw(){bg({sk:['#6a7aa8','#c9d3ec']},0);const T=tris(),st=Math.min(100,T.length*20);x.fillStyle='#ffe28a66';T.forEach(t=>{x.beginPath();t.forEach((i,k)=>k?x.lineTo(N[i].x,N[i].y):x.moveTo(N[i].x,N[i].y));x.fill()});
+x.strokeStyle='#8a5a2b';x.lineWidth=7;E.forEach(e=>{x.beginPath();x.moveTo(N[e[0]].x,N[e[0]].y);x.lineTo(N[e[1]].x,N[e[1]].y);x.stroke()});
+N.forEach((n,i)=>ci(n.x,n.y,i==sel?13:9,i==sel?'#f55':'#fff'));x.font='46px sans-serif';x.fillText('🤕',376,GY+6);x.font='30px sans-serif';x.fillText('🪨',376+Math.sin(Date.now()/300)*3,40);
+x.fillStyle='#fff';x.font='bold 16px sans-serif';x.fillText(`지지대 ${E.length}/${MAX} · 삼각형 ${T.length}개 · 안정성 ${st}%`,12,24);x.font='13px sans-serif';x.fillText('점 두 개를 차례로 클릭해 지지대를 설치! 삼각형을 많이 만들수록 튼튼해요',12,GY+30)}
+const iv=setInterval(()=>mode=='build'?draw():clearInterval(iv),100);draw();
+cv.onpointerdown=ev=>{if(mode!='build')return;const r=cv.getBoundingClientRect(),mx=(ev.clientX-r.left)*W/r.width,my=(ev.clientY-r.top)*H/r.height;const i=N.findIndex(n=>Math.hypot(n.x-mx,n.y-my)<24);if(i<0)return;
+if(sel<0)sel=i;else if(sel==i)sel=-1;else{const a=N[sel],b=N[i];if(Math.abs(a.c-b.c)<=1&&Math.abs(a.r-b.r)<=1&&E.length<MAX){const k=[Math.min(sel,i),Math.max(sel,i)];if(!E.some(e=>e.join()==k.join())){E.push(k);beep(400,.05)}}sel=i}draw()};
+$('#undo').onclick=()=>{E.pop();sel=-1;draw()};
+$('#ok').onclick=()=>{const t=tris().length,st=Math.min(100,t*20);mode='';$('#bt').style.display='none';cv.onpointerdown=null;done(st,t)}}
+/* ---------- 모스부호 ---------- */
+const M={A:'.-',B:'-...',C:'-.-.',D:'-..',E:'.',F:'..-.',G:'--.',H:'....',I:'..',J:'.---',K:'-.-',L:'.-..',M:'--',N:'-.',O:'---',P:'.--.',Q:'--.-',R:'.-.',S:'...',T:'-',U:'..-',V:'...-',W:'.--',X:'-..-',Y:'-.--',Z:'--..'};
+function morse(cb){const w=['NECK','JUMP','HELP','WALL','SHIELD','ESCAPE','POWER','TOWER'][Math.floor(Math.random()*8)],code=[...w].map(c=>M[c]),vis=code.map(c=>c.replace(/\./g,'●').replace(/-/g,'▬')).join('&nbsp;&nbsp;/&nbsp;&nbsp;');let tries=2;
+(function r(msg){show(`<h3>📡 통신 두절 — 모스부호 해독</h3><p style="letter-spacing:3px;font-size:22px;color:#ffd36b">${vis}</p><p class=s>글자 사이는 " / " · ●=점(짧게) ▬=선(길게) · 남은 기회 ${tries}번</p>${msg||''}<div class=mt>${Object.keys(M).map(k=>`<span>${k}<br>${M[k].replace(/\./g,'●').replace(/-/g,'▬')}</span>`).join('')}</div><input id=ans maxlength=6 placeholder="영어 단어" style="margin-top:6px"> ${B('🔊 소리로 듣기',()=>{let t=0;code.forEach(c=>{[...c].forEach(s=>{setTimeout(()=>beep(650,s=='.'?.1:.3),t);t+=s=='.'?200:450});t+=500})})}${B('📨 해독 완료',()=>{const a=$('#ans').value.toUpperCase().trim();if(a==w){G.morse=true;say([['본부','…수신 성공. "'+w+'". 지시는 거인의 약점 위치를 알려 준다!'],['해설','해독 성공! 다음 전투에서 거인이 약화됩니다.']],cb)}else if(--tries>0)r('<p style="color:#f66">❌ 틀렸어요! 대조표를 다시 보세요.</p>');else{G.morse=false;say([['해설','해독 실패… 정답은 "'+w+'"였다. 거인은 약화되지 않는다.']],cb)}})}`)})()}
+/* ---------- 지도 ---------- */
+const MP=['교실','벽 안 거리','발전소','임시 거점','통신 탑','최종 지점'],MI=['🏫','🏘️','⚡','⛺','📡','🏰'];
+function map(i,next){let s='<svg viewBox="0 0 700 130" width="100%"><path d="M50 60 L650 60" stroke="#556" stroke-width="6" stroke-dasharray="10 8"/>';
+MP.forEach((n,k)=>{const cx=50+k*120,col=k<i?'#3a5':k==i?'#ffd36b':k==i+1?'#e44':'#667';s+=`<circle cx="${cx}" cy="60" r="${k==i?20:15}" fill="${col}"${k==i+1?'><animate attributeName="r" values="15;21;15" dur="1s" repeatCount="indefinite"/></circle>':'/>'}<text x="${cx}" y="66" text-anchor="middle" font-size="18">${MI[k]}</text><text x="${cx}" y="105" text-anchor="middle" fill="#fff" font-size="13">${n}</text>`});
+s+=`<text x="${50+i*120}" y="28" text-anchor="middle" fill="#ffd36b" font-size="12">▼ 현재</text></svg>`;
+show(`<h3>🗺️ 벽 안 지도</h3>${s}<p>현재: <b>${MP[i]}</b> → 다음 목적지: <b style="color:#f66">${MP[i+1]}</b></p>${B('🚶 출발!',next)}`)}
+/* ---------- 스테이지 ---------- */
+const C1={n:'1번 거인 · 벽 안 거리',hp:130,s:['H'],spd:50,time:70,dmg:20,sk:['#8ec9ff','#dff1ff'],col:'#e8b48a',sk2:'#c98f6b'},C2={n:'2번 거인 · 발전소',hp:180,s:['H','R'],spd:58,time:75,dmg:24,sk:['#ffb37a','#ffe3b8'],col:'#e0a37e',sk2:'#b8825f'},
+C3={n:'3번 거인 · 통신 탑',hp:230,s:['H','C','R'],spd:66,time:80,dmg:28,late:1,sk:['#6b7fd6','#b9c4f2'],col:'#d99a8a',sk2:'#b27668'},C4={n:'최종 거인 · 최종 지점',hp:300,s:['H','C','R'],spd:74,time:90,dmg:32,late:1,final:1,sk:['#2a1f4d','#5b3f7a'],col:'#c98f9a',sk2:'#9c6a78',mid:twist};
+function after(r,cb){say([['해설',r?'거인이 쓰러졌다! 💥':'⏱ 시간 초과! 거인이 벽을 들이받았다… 간신히 후퇴했다. (평가 감점)']],()=>{if(!r)G.fails++;cb()})}
+function title(){reset();show(`<h1>진격의 기술가정</h1><h2>벽 위의 수업</h2><p>이름을 입력하세요</p><input id=nm maxlength=6 placeholder="이름">${B('▶ 게임 시작',()=>{G.name=$('#nm').value.trim()||'학생';pro()})}<p class=s>이동: 방향키/WASD · Z/Space: 말 걸기·공격 · H: 회복약 · 전투 중 ↑ 점프<br>고전 RPG 스타일 · 약 1시간 · 목숨 ♥×3 (모두 잃으면 처음부터!) · 모바일은 하단 버튼</p>`)}
+function pro(){say([['해설','평범한 3교시 기술가정 시간. 교실엔 마커 냄새와 졸음이 가득하다.'],['기술 선생님','자, 오늘은 재료의 성질을 배웁시다. {n}, 교과서 87쪽 읽어볼래?'],['기술 선생님','…이 수업, 어제도 한 것 같은데. 기분 탓이겠지?'],['친구','야 {n}, 창밖에 뭐가… 저게 뭐야?!'],['해설','쿵— 쿵—!! 벽 위로 거대한 얼굴이 불쑥 솟아올랐다!'],['기술 선생님','침착해! 실습실 장비함에서 입체기동장치를 꺼내. 오늘 수업은… 실전이다.'],['해설','(운동장으로 달려가는 선생님의 발밑엔 이상하게도 그림자가 없었다.)']],()=>enter(0))}
+function s1(){say([['기술 선생님','{n}, 칼부터 고르자. 재료의 성질을 알면 싸움이 달라져!']],()=>show(`<h3>🔧 칼의 재료를 고르세요</h3><p class=s>선택은 속도·점프·내구도·공격력에 그대로 반영!</p>`+Object.keys(MAT).map(k=>B(`${MAT[k].i} ${MAT[k].n}<small>${MAT[k].d}</small>`,()=>{G.mat=k;battle(C1,r=>after(r,()=>quiz(2,()=>map(1,s2))))})).join('')))}
+function s2(){say([['해설','삐—! 입체기동장치의 전력이 바닥나고 있다.'],['기술 선생님','에너지를 어떻게 쓸지 정해! (…전력 로그는 서버 쪽에서도 보이긴 하는데, 아 아니다. 내 말은 장치 쪽.)']],()=>show(`<h3>⚡ 전력 운용 방식</h3>`+B('🔥 최대 출력<small>빠르지만 전력 소모 큼</small>',()=>pk('max'))+B('🌿 효율 중심<small>느리지만 전력 절약</small>',()=>pk('eff'))+B('☀️ 간이 태양광 패널<small>전투 중 전력이 천천히 회복</small>',()=>pk('sol'))));
+function pk(k){G.pw=k;solar(()=>battle(C2,r=>after(r,()=>quiz(2,()=>map(2,s3)))))}}
+function s3(){say([['해설','부상당한 동료가 쓰러져 있다. 거인의 낙석이 쏟아진다!'],['기술 선생님','예전에 비슷한 상황에서 실패한 적이 있어서… 이번엔 꼭 지켜내고 싶다. 삼각형을 떠올려 봐, {n}.']],()=>build((st,t)=>{G.stab=st;say([['해설',`안정성 ${st}% (삼각형 ${t}개). ${st>=60?'구조물이 낙석을 버텨냈다! 다음 거인의 속도가 느려지고 내구도가 늘어난다.':'구조물이 흔들린다… 이후 난이도가 올라간다.'}`]],()=>ration(()=>map(3,s4)))}))}
+function s4(){say([['해설','치직— 통신이 끊겼다. 본부에서 모스부호가 들어온다.'],['기술 선생님','이 신호 패턴… 교육청 서버 로그랑 똑같은데? …아냐, 혼잣말이야. 해독 부탁해!']],()=>morse(()=>battle(C3,r=>after(r,()=>quiz(2,()=>map(4,s5))))))}
+function s5(){say([['해설','마지막 거인. 하늘 색이 이상하다. 구름이 네모난 조각으로 깜빡인다.']],()=>battle(C4,()=>twist()))}
+function twist(){say([['{n}','…선생님? 목소리가 이상해요.'],['기술 선생님','ERR… 시뮬레이… 종료 절차… 아, 들켜 버렸네.'],['기술 선생님','{n}. 이 세계는 학습 시뮬레이션이야. 거인도, 벽도, 친구들도 전부 수업 프로그램이었지.'],['기술 선생님','나는 이 시뮬레이션의 관리자. 예전에 비슷한 상황에서 실패한 적이 있다고 했지? 그때 학생들은 끝까지 버티지 못했어. 그래서 이번엔… 일부러 위기를 만들었단다.'],['기술 선생님','어제 같은 수업이라 느꼈지? 맞아, 넌 이 수업을 여러 번 겪었어. 그래서 오늘의 지식이 네 안에 남아 있는 거야.'],['기술 선생님','3년 전, 우리 학교 대피소가 정전과 붕괴로 무너졌어. 아이들은 재료도, 구조도, 신호도 몰랐지… 나는 그날 아무것도 하지 못했다.'],['기술 선생님','그래서 이 시뮬레이션을 만들었어. 위기를 먼저 겪게 해서, 진짜 위기가 오면 살아남도록. 거인은 화재·정전·붕괴·통신 두절의 모습이었지.'],['기술 선생님','네가 모은 단서는 '+G.cl+'개. 의심하고 질문한 만큼, 너는 이미 이 세계 밖을 보고 있었던 거야.'],['기술 선생님','선택해라, {n}. 이 진실을 어떻게 받아들일래?']],()=>show(`<h3>🧩 최종 선택</h3>`+B('🌅 받아들인다<small>"배운 지식은 진짜예요."</small>',()=>end('A'))+B('✊ 저항한다<small>"누가, 왜 이걸 만들었죠?"</small>',()=>end('R'))+B('😪 대충 넘긴다<small>"아 네~ 그렇군요~"</small>',()=>end('I'))))}
+function end(k){const pts=Math.round(G.stab/25)+(G.morse?3:0)+G.q+Math.round(G.sol*2)+Math.round(G.rat/2)-G.fails,gr=pts>=15?'S':pts>=11?'A':pts>=7?'B':'C';
+const E={A:['🌅 각성 엔딩','시뮬레이션이든 아니든, 삼각형이 하중을 나누고 균형 잡힌 식사가 몸을 지킨다는 사실은 진짜다. {n}은(는) 눈을 뜨고 현실로 돌아와 이렇게 말한다. "선생님, 다음 수업은 제가 준비해 볼게요."'],
+R:['✊ 저항 엔딩','"이 시스템은 누가 만들었죠?" {n}의 질문에 시스템 로그가 뒤엉킨다. 선생님은 처음으로 당황하며 웃는다. "좋아… 의심하는 법도 수업이지." 세계는 무너졌지만, 질문하는 눈은 남았다.'],
+I:['😪 무관심 엔딩','"아 네~" {n}은(는) 하품을 하며 의자에 앉았다. 화면이 암전되고 종소리가 울린다. 교과서 87쪽, 선생님의 목소리. "자, 오늘은 재료의 성질을…" 수업은 다시 처음으로.'],
+T:['✨ 진(眞) 엔딩 — 마지막 수업','{n}은(는) 모든 지식을 증명했다. 선생님은 관리자 권한을 내려놓는다. "이제 네가 가르칠 차례야." 시뮬레이션의 문이 열리고, 현실의 교실에서 진짜 수업이 시작된다.']};
+if(k=='A'&&pts>=14&&G.cl>=4)k='T';
+show(`<h2>${E[k][0]}</h2><p>${E[k][1].replace(/{n}/g,G.name)}</p><p>🏅 평가 <b style="color:#ffd36b;font-size:28px">${gr}</b> (${pts}점)<small>재료 ${MAT[G.mat].n} · 전력 ${G.pw} · 구조 ${G.stab}% · 모스 ${G.morse?'성공':'실패'} · 퀴즈 ${G.q}/${G.qn} · 단서 ${G.cl}/5 · 식량 ${G.rat}/4 · 패배/시간초과 ${G.fails}회</small></p><p class=s>📚 오늘의 배움: 재료의 성질 · 에너지 효율과 신재생 · 삼각 구조 · 모스부호(ICT) · 균형 잡힌 영양</p>${B('🔁 다시 하기 (다른 엔딩 보기)',title)}`)}
+/* ===== 필드(고전 RPG) ===== */
+const TS=32,P={x:70,y:235,f:1,mv:0};let owt=0,owl0=0,owA=0,owH=0,msg='',mt=0;
+function talk(L,cb){hide();let i=0;const d=$('#dl');mode='talk';window.adv=()=>{if(i>=L.length){d.style.display='none';mode='';window.adv=null;return cb()}const[s0,t]=L[i++],s=s0.replace('기술 선생님','이종혁 선생님');d.innerHTML=`<b>${s}</b><p>${t.replace(/{n}/g,G.name)}</p><i>▶ Z / Space / 터치로 다음</i>`;d.style.display='block'};d.onclick=()=>window.adv&&adv();adv()}
+const N=L=>k=>talk(L,k),once=(f,k,fn)=>G.f[f]?talk([['해설','이미 끝낸 일이다.']],k):(G.f[f]=1,fn());
+const bs=(C,f,need,m)=>k=>G.f[need]?battle(C,r=>after(r,()=>{G.f[f]=1;G.g+=50;quiz(1,k)})):talk([['해설',m]],k);
+function shop(k){show(`<h3>🧙 보급 상점</h3><p>💰 ${G.g} · 🧪 ${G.pot}</p>`+B('🧪 회복약 (20💰)',()=>{if(G.g>=20){G.g-=20;G.pot++;beep(700)}else beep(150);shop(k)})+B('💤 휴식 (30💰) 체력 전부 회복',()=>{if(G.g>=30&&G.hpf<1){G.g-=30;G.hpf=1;beep(900)}else beep(150);shop(k)})+B('나가기',k))}
+function pickMat(k){show(`<h3>📦 장비함 — 칼의 재료</h3><p class=s>속도·점프·내구도·공격력이 달라져요</p>`+Object.keys(MAT).map(m=>B(`${MAT[m].i} ${MAT[m].n}<small>${MAT[m].d}</small>`,()=>{G.mat=m;G.f.mat=1;talk([['해설',MAT[m].n+' 칼을 장착했다!']],k)})).join(''))}
+function pickPw(k){const pp=v=>{G.pw=v;G.f.pw=1;solar(()=>{G.g+=20;k()})};show(`<h3>⚡ 발전기 제어판</h3><p class=s>전력 운용 방식을 정하세요</p>`+B('🔥 최대 출력<small>빠르지만 전력 소모 큼</small>',()=>pp('max'))+B('🌿 효율 중심<small>느리지만 전력 절약</small>',()=>pp('eff'))+B('☀️ 간이 태양광<small>전투 중 전력 천천히 회복</small>',()=>pp('sol')))}
+function cards(k){const PR=[['목재','가볍고 가공이 쉬움'],['철','튼튼하지만 무거움'],['태양광','햇빛으로 전기 생산'],['모스부호','점과 선으로 통신'],['삼각형','힘을 고르게 분산'],['단백질','몸을 만드는 영양소']];let D=[];PR.forEach((p,i)=>D.push([i,p[0]],[i,p[1]]));D.sort(()=>Math.random()-.5);let o=[],dn=new Set(),mv=0,lk=0;
+const r=()=>show(`<h3>🃏 미니게임: 짝 맞추기</h3><p class=s>알맞은 짝을 찾아요 · 시도 ${mv}회</p><div class=gr>`+D.map((c,i)=>`<button class="${dn.has(i)?'on':''}" onclick="F[${(F.push(()=>f(i)),F.length-1)}]()">${dn.has(i)||o.includes(i)?c[1]:'❓'}</button>`).join('')+'</div>');
+const f=i=>{if(lk||dn.has(i)||o.includes(i))return;o.push(i);r();if(o.length==2){mv++;lk=1;setTimeout(()=>{if(D[o[0]][0]==D[o[1]][0]){dn.add(o[0]);dn.add(o[1]);beep(800)}o=[];lk=0;if(dn.size==12){if(mv>15){G.f.cd=0;return failMini(()=>cards(k))}const g=Math.max(10,50-mv*3);G.g+=g;say([['해설',`모두 맞혔다! +${g}💰`]],k)}else r()},700)}};r()}
+function ox(k){const Q=[['목재는 철보다 불에 강하다.',0],['삼각형 구조는 힘을 분산한다.',1],['석탄은 신재생에너지다.',0],['모스부호는 점과 선으로 만든다.',1],['라면만 먹어도 영양이 균형 잡힌다.',0],['태양광 패널은 햇빛과 수직일 때 효율이 좋다.',1],['합선이 나면 차단기가 전기를 끊어 준다.',1],['식중독 예방엔 조리 전 손 씻기가 중요하다.',1]].sort(()=>Math.random()-.5).slice(0,6);let i=0,s=0,tm;
+const a=(v,q)=>{clearTimeout(tm);if(v==q[1]){s++;beep(800)}else beep(150);n()},n=()=>{clearTimeout(tm);if(i>=6){G.g+=s*6;if(s<4){G.f.ox=0;return failMini(()=>ox(k))}return say([['해설',`스피드 O/X ${s}/6 정답! +${s*6}💰`]],k)}const q=Q[i++];show(`<h3>⚡ 스피드 O/X (${i}/6)</h3><p style="font-size:22px">${q[0]}</p><p class=s>4초 안에 선택! (4개 이상 맞혀야 통과)</p>`+B('⭕ O',()=>a(1,q))+B('❌ X',()=>a(0,q)));tm=setTimeout(()=>a(-1,q),4000)};n()}
+const GT=[()=>G.f.b0,()=>G.f.cd&&G.f.ox,()=>G.f.b2,()=>G.f.bd&&G.f.rt,()=>G.f.b4,()=>0];
+const OB=[()=>!G.f.mat?'장비함에서 칼 재료 고르기':'거인을 쓰러뜨려 문을 열자',()=>!G.f.cd||!G.f.ox?'장난감 가게(짝 맞추기)·오락기(O/X) 완료':'오른쪽 문으로',()=>!G.f.pw?'발전기 제어판 조작':'거인을 쓰러뜨리자',()=>!G.f.bd?'부상자를 구조물로 보호':!G.f.rt?'식당에서 식량 배급':'오른쪽 문으로',()=>!G.f.mo?'통신 단말기로 모스부호 해독':'거인을 쓰러뜨리자',()=>'최종 거인과 대결!'];
+const GL=['🤖 ...(똑같은 말만 반복한다) 안녕 안녕 안녕 안녕…'];
+const ZN=[
+{n:'구산중 운동장',i:'평범한 3교시… 하지만 운동장 한가운데 거대한 그림자가 드리웠다. 사람들과 대화해 정보를 모으자.',c:['#86b86b','#7aae60','#8a8f98'],d:'🌳',ob:[[3,3,2,2],[19,2,2,3],[9,9,3,1],[16,10,2,2],[5,10,1,1]],e:[
+[6,5,'🧑‍🎓','친구',N([['친구','야 {n}! 거인 목덜미가 빨갛게 빛나잖아. 거기가 약점인가 봐!'],['친구','근데 우리 반 애들 다 어디 갔지? 아까부터 나랑 너만 있는 것 같아…']])],
+[10,3,'🧑‍🏫','기술 선생님',N([['기술 선생님','{n}, 칼은 장비함에서 고르렴. 재료의 성질을 떠올려 봐.'],['기술 선생님','…이상하지? 아까부터 아무의 그림자도 움직이지 않아. 교과서 87쪽, 어제도 읽었는데.']])],
+[13,6,'📦','장비함',k=>G.f.mat?talk([['해설','이미 칼을 골랐다. ('+MAT[G.mat].n+')']],k):pickMat(k)],
+[8,11,'📋','게시판',k=>once('q0',k,()=>quiz(2,k))],
+[21,6,'👹','거인',bs(C1,'b0','mat','먼저 장비함에서 칼을 골라야 한다!'),'b0']]},
+{n:'벽 안 거리',i:'성벽 안쪽 마을. 주민들에게서 거인의 기술을 알아내자. 상점에서 회복약도 살 수 있다.',c:['#d8c9a3','#cdbd95','#7b6f66'],d:'🏠',ob:[[3,2,3,2],[8,8,3,2],[14,2,2,2],[17,9,3,2],[11,5,1,1]],e:[
+[5,5,'👵','할머니',N([['할머니','목 뒤가 빨갛게 빛나지? 그런데 거인이 몸을 단단하게 만들 땐 칼이 튕겨 나온단다.'],['할머니','회색으로 번쩍이면 잠시 기다려라. 괜히 쳤다간 네가 다친다.'],['할머니','…어제도 이 말을 했던가? 오늘이 며칠이더라…']])],
+[12,3,'🧙','상인',shop],
+[18,5,'🧸','장난감 가게',k=>once('cd',k,()=>cards(k))],
+[7,11,'🕹️','오락기',k=>once('ox',k,()=>ox(k))],
+[15,9,'👦','꼬마',N([['꼬마',GL[0]],['꼬마','…{n} 형/누나, 나 방금 뭐라고 했어?']])],
+[21,3,'💂','병사',N([['병사','붉은 기운이 몸을 감싸면 반격 태세다! 그때 목을 베면 크게 얻어맞는다.'],['병사','반격은 약점을 노리는 자를 되받아치는 기술이지.']])]]},
+{n:'발전소',i:'입체기동장치를 돌리는 전력 시설. 에너지를 어떻게 쓸지 정해야 한다.',c:['#6d7a8a','#627080','#3a4452'],d:'⚙️',ob:[[3,3,2,3],[8,9,4,1],[17,2,1,4],[14,9,2,2],[21,9,1,2]],e:[
+[5,7,'👷','엔지니어',N([['엔지니어','거인이 돌을 던질 땐 ⚠가 뜬다. 점프로 피해! 돌은 포물선으로 떨어져.'],['엔지니어','최대 출력은 빠르지만 금방 바닥나. 전력은 아껴 쓰는 게 기본!']])],
+[12,6,'🔌','발전기',k=>G.f.pw?talk([['해설','발전기는 이미 설정했다.']],k):pickPw(k)],
+[16,3,'🔆','태양광 패널',k=>once('q2',k,()=>quiz(2,k))],
+[9,11,'🌀','풍력 터빈',k=>once('q2b',k,()=>quiz(2,k))],
+[3,9,'🧑‍🏫','기술 선생님',N([['기술 선생님','전력 로그는 서버… 아니, 장치 쪽이 중요해. 태양광은 햇빛과 수직으로!']])],
+[21,6,'👹','거인',bs(C2,'b2','pw','발전기를 먼저 설정해야 싸울 수 있다!'),'b2']]},
+{n:'임시 거점',i:'낙석으로 다친 사람들이 모인 임시 거점. 구조와 식량 배급이 급하다.',c:['#a3b07a','#98a670','#6b5a40'],d:'⛺',ob:[[3,2,2,2],[3,9,2,2],[9,9,3,1],[16,3,2,2],[17,9,2,2]],e:[
+[12,5,'🤕','부상자',k=>G.f.bd?talk([['부상자','덕분에 살았어요…']],k):talk([['부상자','으윽… 낙석이…'],['기술 선생님','예전에 비슷한 상황에서 실패한 적이 있어서… 이번엔 꼭 지켜내고 싶다. 삼각형을 떠올려 봐, {n}.']],()=>build((st,t)=>{G.stab=st;if(st<40)return failMini(()=>ZN[3].e.find(e=>e[3]=='부상자')[4](k));G.f.bd=1;G.g+=30;say([['해설',`안정성 ${st}% (삼각형 ${t}개). ${st>=60?'구조물이 낙석을 버텼다!':'구조물이 흔들린다…'} +30💰`]],k)}))],
+[6,4,'👩‍🍳','식당 아주머니',k=>once('rt',k,()=>ration(()=>{G.g+=20;k()}))],
+[19,7,'🧙','상인',shop],
+[4,7,'🧑‍⚕️','의무병',N([['의무병','다음은 통신 탑이야. 통신이 끊기면 모스부호로 지시가 온대.'],['의무병','점(●)과 선(▬)을 대조표로 해독해야 해. 침착하게!']])],
+[14,11,'👦','꼬마',N([['꼬마',GL[0]]])]]},
+{n:'통신 탑',i:'눈 덮인 통신 탑. 단말기에서 모스부호를 해독해야 거인의 약점 정보를 얻는다.',c:['#dfe9f2','#d0deea','#5a6b86'],d:'📡',ob:[[3,3,2,2],[8,2,1,4],[14,8,3,2],[18,2,2,2],[5,10,2,1]],e:[
+[12,5,'📟','통신 단말기',k=>G.f.mo?talk([['해설','이미 해독을 마쳤다.']],k):morse(()=>{G.f.mo=1;G.g+=40;k()})],
+[7,8,'🧑‍💻','통신병',k=>once('q4',k,()=>quiz(2,k))],
+[16,5,'🧑‍🏫','기술 선생님',N([['기술 선생님','이 신호 패턴… 교육청 서버 로그랑 똑같은데? …아냐, 혼잣말이야.']])],
+[21,6,'👹','거인',bs(C3,'b4','mo','단말기를 먼저 확인해야 한다!'),'b4']]},
+{n:'최종 지점',i:'하늘이 깜빡이고 땅이 네모 조각으로 흔들린다. 준비가 끝났다면 최종 거인에게!',c:['#3b2a5e','#32244f','#1c1330'],d:'🧱',ob:[[3,3,2,2],[8,9,3,1],[15,3,2,2],[17,10,2,1]],e:[
+[7,6,'🧑‍🏫','기술 선생님',N([['기술 선생님','{n}, 여기까지 왔구나… 미안하다. 곧 모든 걸 이야기해 줄게.'],['기술 선생님','다음 거인을 쓰러뜨리면, 네가 알아야 할 진실을 보게 될 거야.']])],
+[11,3,'🧙','상인',shop],
+[20,6,'👹','최종 거인',k=>battle(C4,()=>twist())]]}];
+const solid=(px,py)=>{const tx=Math.floor(px/TS),ty=Math.floor(py/TS),Z=ZN[G.z];if(tx<1||ty<1||ty>12)return 1;if(tx>=24)return !((ty==6||ty==7)&&GT[G.z]());if(Z.ob.some(o=>tx>=o[0]&&tx<o[0]+o[2]&&ty>=o[1]&&ty<o[1]+o[3]))return 1;return Z.e.some(e=>!(e[5]&&G.f[e[5]])&&e[0]==tx&&e[1]==ty)};
+const blk=(a,b)=>solid(a-9,b+6)||solid(a+9,b+6)||solid(a-9,b+14)||solid(a+9,b+14);
+function enter(z){G.z=z;G.hpf=Math.min(1,G.hpf+.25);P.x=70;P.y=235;talk([['📍 '+ZN[z].n,ZN[z].i],...(ST[z]||[])],ow)}
+function ow(){cancelAnimationFrame(raf);mode='ow';hide();$('#tc').style.display='flex';owl0=performance.now();raf=requestAnimationFrame(owLoop)}
+function act(f){cancelAnimationFrame(raf);mode='';K.L=K.R=K.J=K.D=K.A=K.KeyZ=K.Space=0;f(ow)}
+function owLoop(now){if(mode!='ow')return;const dt=Math.min(.05,(now-owl0)/1000);owl0=now;owt+=dt;mt-=dt;const Z=ZN[G.z],L=K.ArrowLeft||K.KeyA||K.L,R=K.ArrowRight||K.KeyD||K.R,U_=K.ArrowUp||K.KeyW||K.J,D=K.ArrowDown||K.KeyS||K.D,A=K.KeyZ||K.Space||K.A;
+const dx=(R?1:0)-(L?1:0),dy=(D?1:0)-(U_?1:0);P.mv=dx||dy;if(dx)P.f=dx;const sp=(dx&&dy?.71:1)*140*dt;
+if(dx&&!blk(P.x+dx*sp,P.y))P.x+=dx*sp;else if(dx&&P.x+dx*sp>24*TS-8&&P.y>=6*TS-4&&P.y<8*TS&&!GT[G.z]()){msg='🔒 문이 잠겨 있다 — 목표: '+OB[G.z]();mt=2.5}
+if(dy&&!blk(P.x,P.y+dy*sp))P.y+=dy*sp;
+if((K.KeyH||K.P)&&!owH&&G.pot>0&&G.hpf<1){G.pot--;owH=1;G.hpf=Math.min(1,G.hpf+.45);msg='🧪 체력 회복!';mt=1.5;beep(900,.1)}if(!(K.KeyH||K.P))owH=0;
+if(P.x>24*TS+16){return act(k=>map(G.z,()=>enter(G.z+1)))}
+let nr=null,nd=46;Z.e.forEach(e=>{if(e[5]&&G.f[e[5]])return;const d=Math.hypot(e[0]*TS+16-P.x,e[1]*TS+16-(P.y+8));if(d<nd){nd=d;nr=e}});
+if(A&&!owA&&nr)return owA=1,act(nr[4]);owA=A;
+bg2(Z,nr);raf=requestAnimationFrame(owLoop)}
+function bg2(Z,nr){for(let ty=0;ty<14;ty++)for(let tx=0;tx<25;tx++){x.fillStyle=Z.c[(tx+ty)%2];x.fillRect(tx*TS,ty*TS,TS,TS);if(tx<1||ty<1||ty>12||tx>23){x.fillStyle=Z.c[2];x.fillRect(tx*TS,ty*TS,TS,TS);x.strokeStyle='#0004';x.strokeRect(tx*TS+.5,ty*TS+.5,TS-1,TS-1)}}
+x.fillStyle=GT[G.z]()?'#f5d76e':'#a33';x.fillRect(24*TS,6*TS,TS,2*TS);x.textAlign='center';x.font='28px serif';x.fillStyle='#000';x.fillText('🚪',24*TS+16,7*TS+8);
+Z.ob.forEach(o=>{for(let i=0;i<o[2];i++)for(let j=0;j<o[3];j++)x.fillText(Z.d,(o[0]+i)*TS+16,(o[1]+j)*TS+26)});
+const Ls=Z.e.filter(e=>!(e[5]&&G.f[e[5]])).map(e=>({y:e[1]*TS+16,e}));Ls.push({y:P.y+8,p:1});Ls.sort((a,b)=>a.y-b.y);
+Ls.forEach(o=>{if(o.p){x.fillStyle='#0004';x.beginPath();x.ellipse(P.x,P.y+16,12,5,0,0,7);x.fill();x.save();x.translate(P.x,P.y+16-GY*.6);x.scale(.6,.6);drawP({x:0,y:GY,f:P.f,at:0,mv:P.mv,vy:0},owt,MAT[G.mat]);x.restore();x.font='bold 11px sans-serif';x.lineWidth=3;x.strokeStyle='#000';x.fillStyle='#8ff';x.strokeText(G.name,P.x,P.y-30);x.fillText(G.name,P.x,P.y-30)}
+else{const e=o.e,big=e[2]=='👹',px=e[0]*TS+16,py=e[1]*TS+26;x.fillStyle='#0004';x.beginPath();x.ellipse(px,py+2,big?22:12,5,0,0,7);x.fill();x.font=(big?'56px':'30px')+' serif';x.fillStyle='#000';x.fillText(e[2],px,big?py-6:py);x.font='bold 11px sans-serif';x.lineWidth=3;x.strokeStyle='#000';x.fillStyle=big?'#f88':'#ffd36b';x.strokeText(e[3],px,py-(big?50:30));x.fillText(e[3],px,py-(big?50:30))}});
+if(G.z==4)for(let i=0;i<40;i++){x.fillStyle='#fffc';x.fillRect((i*97+owt*20*(1+i%3))%800,(i*53+owt*45)%450,3,3)}
+if(G.z==5){x.fillStyle='#3f3';x.font='12px monospace';for(let i=0;i<6;i++)x.fillText(Math.random()<.5?'01':'SIM',Math.random()*800,Math.random()*450);x.fillStyle='#fff2';x.fillRect(0,(owt*90)%450,800,6)}
+if(nr){x.font='bold 14px sans-serif';x.fillStyle='#fff';x.lineWidth=4;x.strokeStyle='#000';const t='💬 Z / Space: '+nr[3];x.strokeText(t,P.x,P.y-48);x.fillText(t,P.x,P.y-48)}
+x.fillStyle='#000b';x.fillRect(0,0,W,34);x.textAlign='left';x.font='bold 15px sans-serif';x.fillStyle='#ffd36b';x.fillText('📍 '+Z.n,10,22);x.fillStyle='#fff';x.fillText('💰 '+G.g+'  🧪 '+G.pot+'   🎯 '+OB[G.z](),200,22);
+if(mt>0){x.fillStyle='#000c';x.fillRect(90,H-60,620,38);x.fillStyle='#ffd36b';x.textAlign='center';x.font='bold 16px sans-serif';x.fillText(msg,W/2,H-35)}x.textAlign='left'}
+/* ===== 고퀄리티 캐릭터/배경 (앞선 함수를 덮어씀) ===== */
+const OL='#2a1d1d';
+const lim=(a,b,c,d,w,col)=>{x.strokeStyle=OL;x.lineWidth=w+3;x.beginPath();x.moveTo(a,b);x.lineTo(c,d);x.stroke();x.strokeStyle=col;x.lineWidth=w;x.stroke()};
+const pth=(f,fn)=>{x.beginPath();fn();x.fillStyle=f;x.fill();x.strokeStyle=OL;x.lineWidth=2;x.stroke()};
+const co=(a,b,r,f)=>pth(f,()=>x.arc(a,b,r,0,7));
+function chibi(S,t,o){const bob=o.air?0:Math.sin(t*(o.mv?14:3))*(o.mv?1.6:.8),w=o.mv&&!o.air?Math.sin(t*14)*7:0,hy=-57+bob,sk=S.skin;x.lineJoin=x.lineCap='round';
+if(S.cape)pth(S.cape,()=>{x.moveTo(-8,-49+bob);x.quadraticCurveTo(-30-w*.5,-32,-25-w,-5);x.lineTo(-3,-12);x.lineTo(-3,-45+bob)});
+lim(-4,-20,-4-w,-5,8,S.pants);pth(S.shoe||'#f4f4f4',()=>x.ellipse(-1-w,-3,8,4.5,0,0,7));
+lim(-8,-41+bob,-13-w*.6,-24+bob,6,S.top);co(-13-w*.6,-22+bob,3.7,sk);
+pth(S.top,()=>x.roundRect(-12,-47+bob,24,29,8));x.fillStyle='rgba(0,0,0,.16)';x.beginPath();x.roundRect(3,-46+bob,9,27,[0,7,7,0]);x.fill();x.fillStyle='rgba(255,255,255,.22)';x.beginPath();x.roundRect(-10,-45+bob,5,13,3);x.fill();
+if(S.skirt)pth(S.skirt,()=>{x.moveTo(-13,-26+bob);x.lineTo(13,-26+bob);x.lineTo(18,-11);x.lineTo(-18,-11)});
+if(S.tie){pth('#fff',()=>{x.moveTo(-6,-47+bob);x.lineTo(6,-47+bob);x.lineTo(0,-37+bob)});pth(S.tie,()=>{x.moveTo(0,-40+bob);x.lineTo(3.5,-34+bob);x.lineTo(0,-27+bob);x.lineTo(-3.5,-34+bob)})}
+if(S.belt){x.fillStyle=S.belt;x.fillRect(-12,-27+bob,24,4);x.fillStyle='#ffd36b';x.fillRect(-2,-27+bob,4,4)}
+if(S.odm){x.strokeStyle='#6b4423';x.lineWidth=3;x.beginPath();x.moveTo(-11,-45+bob);x.lineTo(9,-24+bob);x.moveTo(11,-45+bob);x.lineTo(-9,-24+bob);x.stroke();pth('#a9b4ca',()=>x.roundRect(-19,-34+bob,9,14,2));pth('#a9b4ca',()=>x.roundRect(10,-34+bob,9,14,2));x.fillStyle='#ffd36b';x.fillRect(-17,-30+bob,5,3);x.fillRect(12,-30+bob,5,3);x.strokeStyle='#cfd8e8';x.lineWidth=1.2;x.beginPath();x.moveTo(15,-34+bob);x.quadraticCurveTo(26,-40+bob,34,-34+bob+Math.sin(t*5)*3);x.stroke()}
+lim(5,-20,5+w,-5,8,S.pants);pth(S.shoe||'#f4f4f4',()=>x.ellipse(7+w,-3,8,4.5,0,0,7));
+if(S.hs==1)pth(S.hair,()=>{x.moveTo(-18,hy);x.quadraticCurveTo(-28,hy+24,-13,hy+32);x.lineTo(2,hy+26);x.lineTo(2,hy)});
+pth(S.hair,()=>x.ellipse(-3,hy-2,21,21,0,0,7));
+if(S.hs==4)pth(S.hair,()=>x.arc(-5,hy-22,9,0,7));
+if(S.hs==2)pth(S.hair,()=>{x.moveTo(-14,hy-8);x.quadraticCurveTo(-34,hy-4+Math.sin(t*6)*4,-30,hy+22);x.lineTo(-18,hy+14)});
+const gf=x.createRadialGradient(3,hy-5,3,2,hy+2,21);gf.addColorStop(0,sk);gf.addColorStop(1,S.sh||'#f1b48e');pth(gf,()=>x.ellipse(2,hy+2,18,17,0,0,7));
+[[-1,hy+3,5],[10,hy+3,5.6]].forEach(([ex,ey,er])=>{x.fillStyle='#fff';x.beginPath();x.ellipse(ex,ey,er,er*1.25,0,0,7);x.fill();const eg=x.createLinearGradient(0,ey-6,0,ey+7);eg.addColorStop(0,'#111');eg.addColorStop(1,S.eye||'#4a78d8');x.fillStyle=eg;x.beginPath();x.ellipse(ex+1,ey+1,er*.82,er*1.08,0,0,7);x.fill();ci(ex+1.5,ey+1,er*.35,'#000');ci(ex+3,ey-2.2,2,'#fff');ci(ex-.6,ey+3.2,1,'#fffc');x.strokeStyle=OL;x.lineWidth=1.8;x.beginPath();x.ellipse(ex,ey,er,er*1.25,0,Math.PI*1.05,Math.PI*1.95);x.stroke();x.lineWidth=1.4;x.beginPath();x.moveTo(ex-5,ey-9);x.quadraticCurveTo(ex,ey-11,ex+5,ey-8.5);x.stroke()});
+x.fillStyle='rgba(255,120,130,.38)';x.beginPath();x.ellipse(-4,hy+10,3.6,2.2,0,0,7);x.ellipse(13,hy+10,3.6,2.2,0,0,7);x.fill();
+x.strokeStyle='#a2504f';x.lineWidth=1.6;x.beginPath();if(o.at>0){x.fillStyle='#8a2b2b';x.ellipse(5,hy+12,2.8,3,0,0,7);x.fill()}else x.arc(5,hy+8.5,3.2,.2,2.9);x.stroke();
+pth(S.hair,()=>{x.moveTo(-18,hy+3);x.quadraticCurveTo(-22,hy-21,2,hy-22);x.quadraticCurveTo(24,hy-21,20,hy+3);x.quadraticCurveTo(15,hy-9,9,hy-7);x.quadraticCurveTo(5,hy-1,1,hy-9);x.quadraticCurveTo(-8,hy-1,-18,hy+3)});
+if(S.hs==3)for(let i=0;i<4;i++)pth(S.hair,()=>{x.moveTo(-12+i*9,hy-17);x.lineTo(-5+i*9,hy-31+(i%2)*5);x.lineTo(-2+i*9,hy-17)});
+x.strokeStyle='rgba(255,255,255,.55)';x.lineWidth=2.6;x.beginPath();x.arc(1,hy-8,13,Math.PI*1.15,Math.PI*1.62);x.stroke();
+if(S.acc=='glasses'){x.strokeStyle='#222';x.lineWidth=1.8;[[-1,6.5],[10,7]].forEach(([ex,r])=>{x.beginPath();x.arc(ex,hy+3,r,0,7);x.stroke()})}
+if(S.acc=='beard')pth('#f2f2f2',()=>{x.moveTo(-8,hy+10);x.quadraticCurveTo(3,hy+34,14,hy+10);x.quadraticCurveTo(3,hy+14,-8,hy+10)});
+if(S.hat)pth(S.hat,()=>{x.moveTo(-20,hy-6);x.quadraticCurveTo(2,hy-34,23,hy-6);x.lineTo(26,hy-3);x.lineTo(-23,hy-3)});
+if(S.acc=='band')pth('#fff',()=>x.rect(-16,hy-9,34,6));
+if(S.acc=='bow')pth('#e44',()=>{x.moveTo(-8,hy-20);x.lineTo(-18,hy-27);x.lineTo(-18,hy-13);x.lineTo(-8,hy-20);x.lineTo(2,hy-27);x.lineTo(2,hy-13)});
+x.save();x.translate(8,-41+bob);
+if(S.wp){const a=o.at>0?-2.6+(.16-o.at)/.16*2.4:-.5+w*.02;x.rotate(a);lim(0,0,0,9,6,S.top);co(0,11,3.8,sk);const bg=x.createLinearGradient(-3,0,3,0);bg.addColorStop(0,'#fff');bg.addColorStop(1,S.wp);pth('#6b4423',()=>x.roundRect(-5,12,10,3,1));pth(bg,()=>{x.moveTo(-2.5,15);x.lineTo(2.5,15);x.lineTo(3.5,52);x.lineTo(0,60);x.lineTo(-3.5,52)});if(o.at>0){x.strokeStyle=S.wp;x.globalAlpha=.5;x.lineWidth=5;x.beginPath();x.moveTo(0,20);x.lineTo(0,58);x.stroke();x.globalAlpha=1}}
+else{x.rotate(.35+w*.02);lim(0,0,0,13,6,S.top);co(0,15,3.7,sk)}
+x.restore()}
+function drawP(p,t,m){x.save();x.translate(p.x,p.y);x.scale(p.f,1);chibi({hair:'#5b3a29',skin:'#ffe3c9',sh:'#f2b894',eye:'#3f7bd9',top:'#2f3f86',pants:'#232c52',tie:'#d33',belt:'#3a5',cape:'#2f7a4b',odm:1,wp:m.col,hs:0,acc:'band'},t,{mv:p.mv&&p.y>=GY-2,air:p.y<GY-2,at:p.at});x.restore()}
+const BS={skin:'#ffe3c9',sh:'#f2b894',pants:'#3a3f5c',top:'#ccc',hair:'#333',hs:0};
+const NS={'친구':{hair:'#e6a23c',hs:3,top:'#f4f4f4',pants:'#27315a',tie:'#c33',eye:'#2a8a5a'},'기술 선생님':{hair:'#2c2c36',top:'#7d8fc7',pants:'#40424e',acc:'glasses',tie:'#b33'},'할머니':{hair:'#eee',hs:4,top:'#a0527c',skirt:'#c2698f',sh:'#e9c4a2',eye:'#6a4a2a'},'병사':{hair:'#3a2a20',hat:'#8a93a6',top:'#566b43',pants:'#3a3a3a',belt:'#6b4423'},'상인':{hair:'#ddd',hat:'#6a3fa0',acc:'beard',top:'#6a3fa0',pants:'#3a2a60',belt:'#ffd36b'},'엔지니어':{hair:'#3a2a20',hat:'#f2b21c',top:'#e07a1c',pants:'#34425c',belt:'#222'},'식당 아주머니':{hair:'#7a4a2a',hs:4,top:'#fff6e8',skirt:'#d9894a',belt:'#fff',eye:'#7a4a2a'},'의무병':{hair:'#2b6a5a',hs:2,top:'#fdfdfd',skirt:'#5fa8c9',acc:'bow'},'통신병':{hair:'#2a2a2a',hs:1,top:'#5a6e95',pants:'#2a3350',acc:'glasses',eye:'#7a3fa0'},'꼬마':{hair:'#222',hs:3,top:'#e5533a',pants:'#3a4a7a'},'부상자':{hair:'#6b4a2a',acc:'band',top:'#9aa4b8',pants:'#4a4a5a'}};
+function drawG(g,c,t,nyr,pl){x.save();x.translate(g.x,GY);x.lineJoin=x.lineCap='round';
+if(g.st>0){x.fillStyle='rgba(255,40,40,'+(.15+.3*(.75-g.st))+')';x.beginPath();x.ellipse(0,-2,120,14,0,0,7);x.fill()}
+x.fillStyle='rgba(0,0,0,.3)';x.beginPath();x.ellipse(0,0,84,10,0,0,7);x.fill();
+const lift=g.st>0?Math.sin((.75-g.st)*4)*18:0,sw=g.st>0?-40:Math.sin(t*3)*8,ty=nyr+22,lg=x.createLinearGradient(-60,0,60,0);lg.addColorStop(0,c.col);lg.addColorStop(1,c.sk2);
+pth(lg,()=>x.roundRect(-58,-86-lift,46,86+lift,16));pth(lg,()=>x.roundRect(12,-86,46,86,16));pth('#4a3426',()=>x.roundRect(-68,-10-lift,60,14,7));pth('#4a3426',()=>x.roundRect(8,-10,60,14,7));
+pth(lg,()=>x.roundRect(-66,ty,132,-58-ty,26));x.strokeStyle='rgba(0,0,0,.22)';x.lineWidth=3;x.beginPath();x.arc(-18,ty+40,24,.2,2.9);x.arc(18,ty+40,24,.25,2.95);x.moveTo(0,ty+30);x.lineTo(0,-70);x.stroke();
+pth('#7a5b3a',()=>{x.moveTo(-66,-74);x.lineTo(66,-74);x.lineTo(62,-54);x.lineTo(40,-44);x.lineTo(20,-56);x.lineTo(0,-42);x.lineTo(-22,-56);x.lineTo(-44,-44);x.lineTo(-62,-54)});
+lim(-68,ty+16,-88,ty+84+sw,28,c.col);lim(68,ty+16,88,ty+84-sw,28,c.col);co(-88,ty+90+sw,15,c.col);co(88,ty+90-sw,15,c.col);
+pth(c.sk2,()=>x.roundRect(-20,nyr-10,40,36,8));const hg=x.createRadialGradient(-10,nyr-60,6,0,nyr-44,50);hg.addColorStop(0,c.col);hg.addColorStop(1,c.sk2);co(-44,nyr-44,9,c.col);co(44,nyr-44,9,c.col);pth(hg,()=>x.ellipse(0,nyr-44,43,42,0,0,7));
+pth('#2b1d14',()=>{x.moveTo(-44,nyr-48);for(let i=0;i<7;i++){x.lineTo(-40+i*13,nyr-80-(i%2)*10);x.lineTo(-33+i*13,nyr-60)}x.lineTo(44,nyr-48);x.quadraticCurveTo(0,nyr-72,-44,nyr-48)});
+const d=Math.sign(pl.x-g.x)*4;[-16,16].forEach(ex=>{x.fillStyle='#fff';x.beginPath();x.ellipse(ex,nyr-42,10,12,0,0,7);x.fill();x.strokeStyle=OL;x.lineWidth=2;x.stroke();ci(ex+d,nyr-40,5.5,'#1a0a0a');ci(ex+d+2,nyr-43,2,'#fff')});
+x.strokeStyle=OL;x.lineWidth=5;x.beginPath();x.moveTo(-30,nyr-60);x.lineTo(-6,nyr-51);x.moveTo(30,nyr-60);x.lineTo(6,nyr-51);x.stroke();
+pth('#5a1410',()=>x.roundRect(-20,nyr-28,40,17,[3,3,9,9]));x.fillStyle='#fff';for(let i=0;i<5;i++)x.fillRect(-18+i*7.4,nyr-28,5.4,6);
+const gl=x.createRadialGradient(0,nyr,2,0,nyr,30+Math.sin(t*8)*4);gl.addColorStop(0,'rgba(255,255,160,1)');gl.addColorStop(.4,'rgba(255,40,40,.95)');gl.addColorStop(1,'rgba(255,0,0,0)');x.fillStyle=gl;x.beginPath();x.arc(0,nyr,34,0,7);x.fill();
+x.fillStyle='#fff';x.font='bold 12px sans-serif';x.textAlign='center';x.fillText('▼약점',0,nyr-96);x.textAlign='left';
+if(g.sk){x.fillStyle=g.sw>0?'rgba(255,230,80,'+(.2+.2*Math.sin(t*30))+')':g.sk=='H'?'rgba(150,175,205,.7)':g.sk=='C'?'rgba(255,0,0,.3)':'rgba(0,0,0,0)';x.fillRect(-92,nyr-92,184,GY+nyr+8)}
+if(g.fl>0){x.fillStyle='rgba(255,255,255,.5)';x.fillRect(-92,nyr-92,184,GY+nyr+8)}x.restore()}
+function bg2(Z,nr){const z=G.z;for(let ty=0;ty<14;ty++)for(let tx=0;tx<25;tx++){const X=tx*TS,Y=ty*TS,h=(tx*73+ty*37)%11;x.fillStyle=Z.c[(tx+ty)%2];x.fillRect(X,Y,TS,TS);
+if(tx<1||ty<1||ty>12||tx>23){x.fillStyle=Z.c[2];x.fillRect(X,Y,TS,TS);x.fillStyle='#fff2';x.fillRect(X,Y,TS,3);x.fillStyle='#0004';x.fillRect(X,Y+TS-4,TS,4);x.strokeStyle='#0005';x.lineWidth=1;x.strokeRect(X+.5,Y+.5,TS-1,TS-1);x.beginPath();x.moveTo(X+(ty%2?8:20),Y);x.lineTo(X+(ty%2?8:20),Y+TS);x.stroke();continue}
+if(z==0&&h<4){x.strokeStyle='#4a8a38';x.lineWidth=1.6;x.beginPath();for(let k=0;k<3;k++){x.moveTo(X+6+k*8,Y+24);x.lineTo(X+4+k*8,Y+15)}x.stroke();if(h==0){ci(X+22,Y+10,2.2,'#fff');ci(X+22,Y+10,1,'#fd4')}}
+else if(z==1){x.strokeStyle='#0002';x.lineWidth=1;x.beginPath();x.roundRect(X+2,Y+2,TS-4,TS-4,5);x.stroke()}
+else if(z==2){ci(X+5,Y+5,1.6,'#0006');ci(X+27,Y+27,1.6,'#0006');if(h<2){x.fillStyle='#fd34';x.fillRect(X+10,Y+14,12,3)}}
+else if(z==3&&h<3){x.fillStyle='#0002';x.beginPath();x.ellipse(X+16,Y+18,9,5,0,0,7);x.fill()}
+else if(z==4&&h<3){x.fillStyle='#fffa';x.beginPath();x.ellipse(X+16,Y+20,11,5,0,0,7);x.fill()}
+else if(z==5){x.strokeStyle='#8a6bff33';x.beginPath();x.moveTo(X,Y+h*3);x.lineTo(X+TS,Y+h*3);x.stroke()}}
+const op=GT[z]();x.fillStyle=op?'#f5d76e':'#a33';x.fillRect(24*TS,6*TS,TS,2*TS);if(op){x.fillStyle='rgba(255,240,150,'+(.3+.2*Math.sin(owt*5))+')';x.fillRect(23*TS,6*TS,TS,2*TS)}x.textAlign='center';x.font='28px serif';x.fillStyle='#000';x.fillText('🚪',24*TS+16,7*TS+8);
+Z.ob.forEach(o=>{x.fillStyle='#0003';x.beginPath();x.ellipse((o[0]+o[2]/2)*TS,(o[1]+o[3])*TS-3,o[2]*TS/2,8,0,0,7);x.fill();x.font='28px serif';x.fillStyle='#000';for(let i=0;i<o[2];i++)for(let j=0;j<o[3];j++)x.fillText(Z.d,(o[0]+i)*TS+16,(o[1]+j)*TS+26)});
+const BC=[C1,C1,C2,C2,C3,C4][z],Ls=Z.e.filter(e=>!(e[5]&&G.f[e[5]])).map(e=>({y:e[1]*TS+16,e}));Ls.push({y:P.y+8,p:1});Ls.sort((a,b)=>a.y-b.y);
+Ls.forEach(o=>{if(o.p){x.fillStyle='#0004';x.beginPath();x.ellipse(P.x,P.y+16,13,5,0,0,7);x.fill();x.save();x.translate(P.x,P.y+16-GY*.6);x.scale(.6,.6);drawP({x:0,y:GY,f:P.f,at:0,mv:P.mv,vy:0},owt,MAT[G.mat]);x.restore();x.font='bold 12px sans-serif';x.lineWidth=3;x.strokeStyle='#000';x.fillStyle='#8ff';x.strokeText(G.name,P.x,P.y-40);x.fillText(G.name,P.x,P.y-40);return}
+const e=o.e,px=e[0]*TS+16,py=e[1]*TS+26,S=NS[e[3]],big=e[2]=='👹';let ty=30;x.fillStyle='#0004';x.beginPath();x.ellipse(px,py+2,big?24:13,5,0,0,7);x.fill();
+if(S){const sc=e[3]=='꼬마'?.5:.62,gl=e[3]=='꼬마'&&Math.random()<.05;x.save();x.translate(px+(gl?rd(-4,4):0),py+4);x.scale(sc*(Math.sign(P.x-px)||1),sc);chibi({...BS,...S},owt+e[0],{mv:0,at:0});x.restore();ty=e[3]=='꼬마'?52:66}
+else if(big){x.save();x.translate(px,py+8-GY*.34);x.scale(.34,.34);drawG({x:0,st:0,sk:0,sw:0,fl:0},BC,owt,-150+Math.sin(owt*1.6)*25,{x:P.x-px});x.restore();ty=104}
+else{x.font='30px serif';x.fillStyle='#000';x.fillText(e[2],px,py)}
+x.font='bold 12px sans-serif';x.lineWidth=3;x.strokeStyle='#000';x.fillStyle=big?'#f88':'#ffd36b';x.strokeText(e[3],px,py-ty);x.fillText(e[3],px,py-ty)});
+if(z==4)for(let i=0;i<40;i++){x.fillStyle='#fffc';x.fillRect((i*97+owt*20*(1+i%3))%800,(i*53+owt*45)%450,3,3)}
+if(z==5){x.fillStyle='#3f3';x.font='12px monospace';for(let i=0;i<6;i++)x.fillText(Math.random()<.5?'01':'SIM',Math.random()*800,Math.random()*450);x.fillStyle='#fff2';x.fillRect(0,(owt*90)%450,800,6)}
+if(nr){x.font='bold 14px sans-serif';x.fillStyle='#fff';x.lineWidth=4;x.strokeStyle='#000';const t='💬 Z / Space: '+nr[3];x.strokeText(t,P.x,P.y-56);x.fillText(t,P.x,P.y-56)}
+{const v=x.createRadialGradient(W/2,H/2,160,W/2,H/2,520);v.addColorStop(0,'rgba(0,0,0,0)');v.addColorStop(1,'rgba(0,0,20,.45)');x.fillStyle=v;x.fillRect(0,0,W,H)}x.fillStyle='#000b';x.fillRect(0,0,W,52);x.textAlign='left';x.font='bold 15px sans-serif';x.fillStyle='#ffd36b';x.fillText('📍 '+Z.n,10,22);{const m=MAT[G.mat],mh=Math.round(m.hp+G.q*4+G.rat*4+(G.stab>50?G.stab*.3:0));bar(175,7,165,18,G.hpf,G.hpf>.4?'#e44':'#f90','❤ 체력 '+Math.round(G.hpf*mh)+'/'+mh);x.fillStyle='#fff';x.font='bold 14px sans-serif';x.fillText('💰 '+G.g+'  🧪 '+G.pot+'  ♥×'+G.lv+'  🔎 '+G.cl+'/5',355,22);x.fillStyle='#9fe';x.fillText('🎯 '+OB[z](),10,44)}
+if(mt>0){x.fillStyle='#000c';x.fillRect(90,H-60,620,38);x.fillStyle='#ffd36b';x.textAlign='center';x.font='bold 16px sans-serif';x.fillText(msg,W/2,H-35)}x.textAlign='left'}
+NS['이종혁 선생님']=NS['기술 선생님'];ZN.forEach(z=>z.e.forEach(e=>{if(e[3]=='기술 선생님')e[3]='이종혁 선생님'}));
+ZN[3].e.find(e=>e[3]=='의무병')[4]=k=>G.f.h3?talk([['의무병','이미 치료해 줬어. 다음은 통신 탑이야. 점(●)과 선(▬)을 대조표로 해독해야 해.']],k):(G.f.h3=1,G.hpf=Math.min(1,G.hpf+.5),talk([['의무병','다쳤구나! 치료해 줄게. (체력 +50%)'],['의무병','다음은 통신 탑이야. 점(●)과 선(▬)을 대조표로 해독해야 해.']],k));
+/* ===== v3: 목숨·미니게임·스토리·캐릭터 ===== */
+function failMini(retry){if(--G.lv<=0)return gameOver();G.fails++;show(`<h3>❌ 실패!</h3><p>목숨을 하나 잃었다. 남은 목숨 ♥×${G.lv}</p>`+B('🔁 다시 도전',retry)+B('🚪 돌아가기',ow))}
+function gameOver(){mode='';$('#tc').style.display='none';show(`<h2>💀 GAME OVER</h2><p>목숨을 모두 잃었습니다…<br>시뮬레이션이 초기화됩니다.</p><p class=s>배운 내용을 복습하고 처음부터 다시 도전하세요!</p>`+B('🔁 처음부터 다시',title))}
+const MG=(f,flag,k,rw)=>{const go=()=>f(w=>w?(G.f[flag]=1,G.g+=rw,say([['해설','성공! +'+rw+'💰']],k)):failMini(go));go()};
+function fall(o,cb){cancelAnimationFrame(raf);mode='';let px=400,f=1,it=[],t=0,hp=o.hp,sc=0,ac=0,last=0,dn=0,fl=0;
+const end=w=>{if(dn)return;dn=1;cancelAnimationFrame(raf);mode='';$('#tc').style.display='none';K.L=K.R=0;cb(w)};
+const lp=now=>{if(dn||mode!='arc')return;const dt=Math.min(.04,(now-last)/1000);last=now;t+=dt;ac+=dt;fl-=dt;const L=K.ArrowLeft||K.KeyA||K.L,R=K.ArrowRight||K.KeyD||K.R,d=(R?1:0)-(L?1:0);if(d)f=d;px=cl(px+d*o.ps*dt,30,770);
+if(ac>o.iv){ac=0;const e=o.items[Math.floor(Math.random()*o.items.length)];it.push({x:rd(30,770),y:-20,v:rd(o.v,o.v*1.4),e:e[0],g:e[1]})}
+it.forEach(i=>{i.y+=i.v*dt;if(!i.d&&Math.abs(i.x-px)<28&&Math.abs(i.y-(GY-35))<32){i.d=1;if(i.g){sc++;beep(800,.05)}else{hp--;fl=.3;beep(120,.15)}}if(i.y>GY)i.d=1});it=it.filter(i=>!i.d);
+bg(o,t);if(fl>0){x.fillStyle='rgba(255,0,0,.25)';x.fillRect(0,0,W,H)}x.font='30px serif';x.textAlign='center';it.forEach(i=>{x.fillStyle='#000';x.fillText(i.e,i.x,i.y)});x.textAlign='left';
+if(fl<=0||Math.floor(t*20)%2)drawP({x:px,y:GY,f,at:0,mv:d,vy:0},t,MAT[G.mat]);
+x.fillStyle='#000a';x.fillRect(0,0,W,34);x.fillStyle='#fff';x.font='bold 16px sans-serif';x.fillText(o.n+'   '+'❤'.repeat(Math.max(0,hp))+(o.catch?'   🍎 '+sc+'/'+o.goal+'   ⏱ '+Math.max(0,Math.ceil(o.t-t)):'   ⏱ '+Math.max(0,Math.ceil(o.t-t))),10,23);
+if(hp<=0)return end(false);if(o.catch?sc>=o.goal:t>=o.t)return end(true);if(o.catch&&t>=o.t)return end(false);raf=requestAnimationFrame(lp)};
+show(`<h3>${o.n}</h3><p>${o.d}</p><p class=s>← → / A D 로 이동 · 모바일은 하단 버튼</p>`+B('▶ 시작',()=>{hide();$('#tc').style.display='flex';mode='arc';last=performance.now();raf=requestAnimationFrame(lp)}))}
+function tap(o,cb){let n=0,t=o.s,iv;const go=()=>{show(`<h3>${o.n}</h3><p id=tt style="font-size:28px">0 / ${o.g}</p><p id=tm>${t.toFixed(1)}s</p>`+B('🔧🔧 연타!!',()=>{n++;$('#tt').textContent=n+' / '+o.g;beep(300+n*8,.03)}));iv=setInterval(()=>{t-=.1;const m=$('#tm');if(m)m.textContent=Math.max(0,t).toFixed(1)+'s';if(n>=o.g||t<=0){clearInterval(iv);cb(n>=o.g)}},100)};show(`<h3>${o.n}</h3><p>${o.d}</p>`+B('👆 시작!',go))}
+function timing(o,cb){let ok=0,ms=0,pos=0,dir=1,sp=o.sp,iv;const r=()=>{show(`<h3>${o.n}</h3><p class=s>${o.d}</p><p>성공 ${ok}/${o.g} · 실수 ${ms}/2</p><div style="position:relative;height:34px;background:#222;border:2px solid #fff;border-radius:8px;margin:12px auto;width:90%"><div style="position:absolute;top:0;bottom:0;background:#3c3;left:${o.z[0]}%;width:${o.z[1]}%"></div><div id=mk style="position:absolute;top:-4px;bottom:-4px;width:8px;background:#fd0;border-radius:4px;left:0"></div></div>`+B('🔥 지금!',stop));iv=setInterval(()=>{pos+=dir*sp;if(pos>=100||pos<=0)dir*=-1;pos=cl(pos,0,100);const m=$('#mk');if(m)m.style.left=pos+'%'},30)};
+const stop=()=>{clearInterval(iv);if(pos>=o.z[0]&&pos<=o.z[0]+o.z[1]){ok++;beep(800)}else{ms++;beep(150)}if(ok>=o.g)return cb(true);if(ms>=2)return cb(false);o.z[0]=rd(10,70);sp*=1.18;r()};r()}
+function simon(o,cb){const C=['🔴','🟢','🔵','🟡'],S=[];for(let i=0;i<o.n;i++)S.push(Math.floor(Math.random()*4));let k=0,lk=1;const pr=i=>{if(lk)return;beep(300+i*150,.1);if(i!=S[k])return cb(false);if(++k>=S.length)cb(true)};
+show(`<h3>${o.t}</h3><p id=sm>불이 켜지는 순서를 기억하세요…</p><div class=gr id=gd>`+C.map((c,i)=>`<button id=b${i} style="font-size:34px" onclick="F[${(F.push(()=>pr(i)),F.length-1)}]()">${c}</button>`).join('')+'</div>');
+setTimeout(()=>{let i=0;const iv=setInterval(()=>{const bt=document.querySelectorAll('#gd button');bt.forEach(b=>b.style.filter='brightness(.45)');if(i>=S.length){clearInterval(iv);bt.forEach(b=>b.style.filter='');const m=$('#sm');if(m)m.textContent='같은 순서로 누르세요!';lk=0;return}const b=$('#b'+S[i]);if(b)b.style.filter='brightness(2.2)';beep(300+S[i]*150,.25);i++},650)},900)}
+const dd=(f,t,k,fn)=>G.f[f]?talk([['해설','이미 끝낸 일이다.']],k):talk(t,fn);
+const clue=(key,L,k)=>{const nw=!G.f[key];if(nw){G.f[key]=1;G.cl++}talk([...L,['단서',nw?'🔎 이상한 점을 발견했다! (단서 '+G.cl+'/5)':'이미 확인한 단서다. ('+G.cl+'/5)']],k)};
+const TK=[[['mat','장비함에서 칼 재료 고르기'],['m0','낙석 훈련장 통과'],['b0','거인 처치']],[['cd','장난감 가게: 짝 맞추기'],['ox','오락기: 스피드 O/X'],['m1','식재료 시장: 영양 수집']],[['pw','발전기 제어판 조작'],['m2','용접 작업대: 타이밍'],['m2b','수동 발전기 돌리기'],['b2','거인 처치']],[['bd','부상자를 구조물로 보호'],['rt','식당: 식량 배급'],['m3','회로 복구 퍼즐']],[['mo','통신 단말기: 모스부호'],['m4','낙뢰 지대 통과'],['b4','거인 처치']],[['m5','최종 시련 통과']]];
+for(let i=0;i<6;i++){GT[i]=i==5?()=>0:()=>TK[i].every(a=>G.f[a[0]]);OB[i]=()=>{const t=TK[i].find(a=>!G.f[a[0]]);return t?t[1]:(i==5?'최종 거인과 대결!':'오른쪽 문으로!')}}
+ZN[0].e.push([22,10,'⛰️','낙석 훈련장',k=>dd('m0',[['이종혁 선생님','낙석 훈련이다! 20초 동안 떨어지는 돌을 피해라. 3번 맞으면 실패야. 실패하면… 목숨을 잃는다.']],k,()=>MG(c=>fall({n:'⛰️ 낙석 훈련',d:'떨어지는 낙석을 20초 동안 피하세요! (3번 맞으면 실패)',t:20,hp:3,ps:290,iv:.42,v:250,items:[['🪨',0],['☄️',0]],sk:['#8ec9ff','#dff1ff']},c),'m0',k,30))],[2,10,'📓','교무수첩',k=>clue('c0',[['해설','이종혁 선생님의 교무수첩이다. 마지막 장에 이렇게 적혀 있다.'],['수첩','"회차 7. 학생 {n}. 지난 회차 생존율 41%. 이번엔 꼭 지식이 몸에 남게 해야 한다."'],['{n}','…회차? 생존율?']],k)]);
+ZN[1].e.push([20,10,'🍎','식재료 시장',k=>dd('m1',[['상인 아저씨','영양 균형이 곧 체력이지! 좋은 음식만 받아라. 20초 안에 12개 이상! 튀김·음료수·라면·사탕은 피하고!']],k,()=>MG(c=>fall({n:'🍎 식재료 수집',d:'좋은 음식(🍎🥛🍚🥬🍗)만 받고, 나쁜 음식(🍟🥤🍜🍬)은 피하세요! 25초 안에 12개!',t:25,hp:3,ps:300,iv:.4,v:210,catch:1,goal:12,items:[['🍎',1],['🥛',1],['🍚',1],['🥬',1],['🍗',1],['🍟',0],['🥤',0],['🍜',0],['🍬',0]],sk:['#8ec9ff','#dff1ff']},c),'m1',k,30))],[22,11,'🪞','깨진 거울',k=>clue('c1',[['해설','깨진 거울 속 {n}의 모습이 가끔 한 박자 늦게 움직인다. 거울 모서리에 글씨: LOADING 99%'],['{n}','내 그림자도, 사람들 그림자도 없어… 여긴 정말 현실이 아니야.']],k)],[23,8,'🧑','신문팔이',N([['신문팔이','호외요, 호외! 3일째 같은 1면입니다! "벽 위의 수업, 오늘도 계속"'],['신문팔이','거인은 재난의 모양을 한 시험이랍니다. 재료·에너지·구조·통신… 다 배운 사람이 살아남죠.'],['신문팔이','…그런데 이 신문, 어제도 팔았던가? 날짜가 계속 99로 보여요.']])]);
+ZN[2].e.push([18,10,'🔥','용접 작업대',k=>dd('m2',[['엔지니어','용접은 타이밍이 생명이야! 막대가 초록 구간일 때 멈춰. 3번 성공시키면 통과, 2번 틀리면 실패다.']],k,()=>MG(c=>timing({n:'🔥 용접 타이밍',d:'움직이는 막대를 초록 구간에서 멈추세요!',g:3,sp:2.4,z:[45,12]},c),'m2',k,30))],[10,3,'🔧','수동 발전기',k=>dd('m2b',[['엔지니어','전기가 끊겼을 땐 손으로 돌리는 수밖에 없지. 7초 안에 36번 돌려라!']],k,()=>MG(c=>tap({n:'🔧 수동 발전기',d:'버튼을 7초 안에 36번 이상 연타하세요!',g:36,s:7},c),'m2b',k,30))],[5,11,'📟','관리 단말',k=>clue('c2',[['해설','관리 단말에 로그가 떠 있다. [SIM-ADMIN] 위기 난이도 상향… 사용자 {n} 판단력 측정 중…'],['{n}','판단력 측정…? 누가 나를 지켜보고 있어.']],k)],[21,4,'💂','야간 경비',N([['야간 경비','전기는 한 번 꺼지면 순식간이지. 그날도 그랬어… 아, 아니, 내가 무슨 소리를.'],['야간 경비','내 기억엔 구멍이 많아. 누가 필요한 기억만 남겨 놓은 것 같단 말이지.']])]);
+ZN[3].e.push([8,6,'💡','회로 복구',k=>dd('m3',[['의무병','병원 전기를 되살려야 해! 불이 켜지는 순서를 기억해서 똑같이 눌러! 한 번 틀리면 처음부터야.']],k,()=>MG(c=>simon({t:'💡 회로 복구 — 순서 기억',n:6},c),'m3',k,30))],[10,11,'📖','명찰',k=>clue('c3',[['해설','부상자의 명찰에 {n}의 이름이 적혀 있다. 그 아래 작은 글씨: "3년 전, 구산중 대피소 붕괴 사고"'],['{n}','…이건 우연이 아니야.']],k)],[22,5,'👧','피난민 소녀',N([['소녀','선생님이 꿈에 자주 나와. 울면서 "미안해, 못 지켜서 미안해" 하셔.'],['소녀','{n} 오빠/언니는 선생님 편이지? 선생님을 미워하지 말아 줘.']])]);
+ZN[4].e.push([18,10,'⚡','낙뢰 지대',k=>dd('m4',[['통신병','탑 주변은 낙뢰 지대야! 번개·눈덩이·낙석이 동시에 떨어져. 25초만 버텨!']],k,()=>MG(c=>fall({n:'⚡ 낙뢰 지대',d:'번개와 눈덩이, 낙석을 25초 동안 피하세요!',t:25,hp:3,ps:280,iv:.34,v:280,items:[['⚡',0],['❄️',0],['☄️',0]],sk:['#6b7fd6','#b9c4f2']},c),'m4',k,40))],[22,11,'📻','라디오',k=>clue('c4',[['해설','라디오에서 같은 모스부호가 반복된다. ●●●● ● ●▬●● ●▬▬● — H E L P.'],['라디오','…일어나…{n}… 아직 늦지 않았어… 이종혁 선생님을 도와줘…'],['{n}','선생님을… 도와달라고?']],k)]);
+ZN[5].e.push([14,10,'🛡️','최종 시련',k=>dd('m5',[['이종혁 선생님','마지막 시련이다. 모든 재난이 한꺼번에 쏟아진다. 30초를 버텨라. 이걸 통과해야 최종 거인과 싸울 수 있어.']],k,()=>MG(c=>fall({n:'🛡️ 최종 시련',d:'모든 재난이 쏟아진다! 30초 동안 버티세요!',t:30,hp:3,ps:290,iv:.3,v:300,items:[['🪨',0],['☄️',0],['⚡',0],['❄️',0]],sk:['#2a1f4d','#5b3f7a']},c),'m5',k,50))]);
+ZN[5].e.find(e=>e[3]=='최종 거인')[4]=k=>G.f.m5?battle(C4,()=>twist()):talk([['해설','먼저 최종 시련을 통과해야 한다! (🛡️ 최종 시련)']],k);
+Object.assign(NS,{'신문팔이':{hair:'#7a3a1a',hs:3,hat:'#c9a227',top:'#d9d2bd',pants:'#4a4030'},'야간 경비':{hair:'#444',hat:'#2b3a5e',top:'#2b3a5e',pants:'#1f2740',belt:'#c9a227'},'피난민 소녀':{hair:'#ff8fb0',hs:2,top:'#fff0f5',skirt:'#7ec8e3',acc:'bow',eye:'#d9569a'}});
+const ST=[[['해설','…종이 울린다. 어딘가 어긋난 종소리다. 같은 종소리를 어제도, 그제도 들었던 것 같다.'],['친구','{n}, 우리 학교 정문이… 사라졌어. 벽만 있어.'],['기술 선생님','모두 침착! 먼저 무기부터 갖추자. 그리고… {n}, 오늘은 네가 우리 반의 희망이야.']],[['해설','벽 안 거리. 간판엔 "LOADING 99%"가 깜빡이고, 사람들은 같은 동작을 반복한다.'],['기술 선생님','거인은 재난 같은 거야. 화재, 정전, 붕괴, 통신 두절… 우린 그걸 지식으로 이겨내는 거지.']],[['해설','발전소. 불이 하나씩 꺼지는 순간, 창밖의 거인이 어둠 속에서 눈을 떴다.'],['기술 선생님','정전은 가장 흔한 재난이야. 에너지를 어떻게 쓰느냐가 생존을 좌우하지.']],[['해설','임시 거점. 천막 사이로 환자들이 신음한다. 어디선가 {n}의 이름을 부르는 소리가 들린다.'],['기술 선생님','…이 풍경, 낯익지? 아니, 잊어라. 지금은 사람을 지키는 일이 먼저다.']],[['해설','통신 탑. 눈 같은 하얀 노이즈가 내린다. 라디오에서 같은 모스부호가 반복된다.'],['기술 선생님','…이 신호는 내가 보낸 게 아니야. 아니, 보낸 건가? {n}, 조심해. 이 세계의 규칙이 흔들리고 있어.']],[['해설','최종 지점. 하늘엔 거대한 로딩 바. 99%에서 멈춰 있다.'],['기술 선생님','끝이 보인다. 모든 게 끝나면, 네게 꼭 해야 할 말이 있어. 나는…']]];
+const PSTY={hair:'#5b3a29',skin:'#ffe3c9',sh:'#f2b894',eye:'#3f7bd9',top:'#2f3f86',pants:'#232c52',tie:'#d33',belt:'#3a5',cape:'#2f7a4b',odm:1,hs:0,acc:'band'};
+function drawP(p,t,m){const mv=p.mv&&p.y>=GY-2,air=p.y<GY-2;x.save();x.translate(p.x,p.y);x.scale(p.f,1);
+const ag=x.createRadialGradient(0,-40,5,0,-40,62);ag.addColorStop(0,'rgba(120,200,255,.3)');ag.addColorStop(1,'rgba(120,200,255,0)');x.fillStyle=ag;x.beginPath();x.arc(0,-40,62,0,7);x.fill();
+chibi({...PSTY,wp:m.col},t,{mv,air,at:p.at});
+const sw=Math.sin(t*(mv?14:4));pth('#d8333b',()=>{x.moveTo(-9,-46);x.quadraticCurveTo(-24,-44+sw*3,-31,-36+sw*5);x.lineTo(-27,-30+sw*5);x.quadraticCurveTo(-18,-38,-6,-39);x.lineTo(8,-40);x.lineTo(8,-46)});
+x.strokeStyle='#fff';x.lineWidth=1.6;x.beginPath();x.moveTo(-17,-30);x.lineTo(-12,-24);x.lineTo(-17,-20);x.moveTo(-17,-30);x.lineTo(-22,-24);x.lineTo(-17,-20);x.stroke();
+if(p.at>0){x.lineCap='round';x.strokeStyle='rgba(255,255,255,.85)';x.lineWidth=8;x.beginPath();x.arc(8,-40,58,-1.3,.5+(.16-p.at)*3);x.stroke();x.strokeStyle=m.col;x.lineWidth=3;x.stroke()}
+if(air){x.strokeStyle='rgba(220,230,255,.8)';x.lineWidth=1.5;x.beginPath();x.moveTo(15,-34);x.lineTo(60,-120);x.stroke();ci(60,-120,3,'#fff')}
+x.restore()}
+title();
+</script></body></html>
